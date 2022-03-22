@@ -11,7 +11,7 @@ Form
 
 		AvailableVariablesList	{ name: "allVariablesList" }
 		AssignedVariablesList	{ name: "dependent";	title: qsTr("Dependent Variable");	suggestedColumns: ["scale"];	singleVariable: true}
-		AssignedVariablesList	{ name: "dates";		title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true		}
+		AssignedVariablesList	{ name: "time";		title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true		}
 	}
 
 

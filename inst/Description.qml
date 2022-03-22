@@ -3,9 +3,9 @@ import JASP.Module	1.0
 
 Description
 {
-	name		: "jaspModule"
-	title		: qsTr("Jasp Module")
-	description	: qsTr("This module offers analyses.")
+	name		: "jaspPredictiveAnalytics"
+	title		: qsTr("Predictive Analytics")
+	description	: qsTr("This module offers predictive analytics.")
 	version		: "0.1"
 	author		: "JASP Team"
 	maintainer	: "JASP Team <info@jasp-stats.org>"
