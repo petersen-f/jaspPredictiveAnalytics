@@ -25,6 +25,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanMainContainer(jaspResults, ready)
     .predanComputeResults(jaspResults, dataset, options, ready)
     .predanPlotsDescriptives(jaspResults,dataset,options,ready)
+    .predanComputeBinaryResults(jaspResults,dataset,options,ready)
+    #.predanBinaryControlChart(jaspResults,dataset,options,ready)
     return()
 }
 
@@ -57,6 +59,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 .predanComputeResults <- function(jaspResults, dataset, options,ready) {
+
+  ##TODO: store limits somehwere properly and not in DF - maybe list?
   if(!ready) return()
 
   if (is.null(jaspResults[["predanResults"]])) {
@@ -79,15 +83,27 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 .predanComputeBounds <- function(dataset,options) {
 
-
   dataControl <- data.frame(y = dataset[,options[["dependent"]]])
   dataControl$time <- 1:nrow(dataControl)
-  upperLimit <- options$controlMean + options$controlError
-  lowerLimit <- options$controlMean - options$controlError
+
+  if(options$errorBoundMethod == "manualBound") {
+    upperLimit <- options$controlMean + options$controlError
+    lowerLimit <- options$controlMean - options$controlError
+  } else {
+    controlPeriod <- seq_len(ifelse(options$controlPeriodCheck,
+                                    options$controlPeriod,
+                                    nrow(dataControl)))
+    upperLimit <- mean(dataControl$y[controlPeriod]) + sd(dataControl$y[controlPeriod])*options$sigmaBound
+    lowerLimit <- mean(dataControl$y[controlPeriod]) - sd(dataControl$y[controlPeriod])*options$sigmaBound
+
+  }
+
+
 
   dataControl$outBound <- ifelse(dataControl$y > upperLimit | dataControl$y < lowerLimit,T,F)
+  dataControl$outBoundNum <- as.numeric(dataControl$outBound)
 
-  return(dataControl)
+  return(list(dataControl,upperLimit,lowerLimit))
 }
 
 .predanPlotsDescriptives <- function(jaspResults,dataset,options,ready) {
@@ -95,12 +111,28 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   predanDescriptivePlots <- createJaspContainer(title=gettext("Descriptives"))
 
-  controlData <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
 
-  ##TODO: add dependencies
+  controlData <- predanResults[[1]]
+  #TODO: fix error bound method selection and replace above code -> doesn't work to extract bounds from results object
+  if(options$errorBoundMethod == "manualBound") {
+    upperLimit <- options$controlMean + options$controlError
+    lowerLimit <- options$controlMean - options$controlError
+  } else {
+    controlPeriod <- seq_len(ifelse(options$controlPeriodCheck,
+                                    options$controlPeriod,
+                                    nrow(controlData)))
+    upperLimit <- mean(controlData$y[controlPeriod]) + sd(controlData$y[controlPeriod])*options$sigmaBound
+    lowerLimit <- mean(controlData$y[controlPeriod]) - sd(controlData$y[controlPeriod])*options$sigmaBound
+  }
+
+
 
   if(options$controlPlotCheck)
-    .predanBasicControlPlot(jaspResults,predanDescriptivePlots,controlData,options)
+    .predanBasicControlPlot(jaspResults,predanDescriptivePlots,controlData,options,zoom=F,upperLimit,lowerLimit)
+
+  if(options$zoomControlPlotCheck && options$zoomControlLength >0)
+    .predanBasicControlPlot(jaspResults,predanDescriptivePlots,controlData,options,zoom=T,upperLimit,lowerLimit)
 
 
   jaspResults[["predanMainContainer"]][["predanDescriptivePlots"]] <- predanDescriptivePlots
@@ -109,26 +141,105 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 
-.predanBasicControlPlot <- function(jaspResults,predanDescriptivePlots,controlData,options){
+.predanBasicControlPlot <- function(jaspResults,predanDescriptivePlots,controlData,options,zoom,upperLimit,lowerLimit){
 
-  upperLimit <- options$controlMean + options$controlError
-  lowerLimit <- options$controlMean - options$controlError
+  if(zoom)
+    controlData <- tail(controlData,options$zoomControlLength)
 
-  predanControlPlot <- createJaspPlot(title= "Basic Control Plot", height = 320, width = 480)
-  p <- ggplot2::ggplot(controlData,ggplot2::aes(x = time,y= y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
-    ggplot2::geom_line(size=1,ggplot2::aes(colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit)),
-                       lineend = "round",linejoin ="round")+
-    ggplot2::geom_point(size=2)+
-    ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred")+
-    ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred")+
-    ggplot2::scale_color_manual(name="Out of Bounds",values=c("#4E84C4","#D16103")) + ggplot2::theme_bw()
+
+    predanControlPlot <- createJaspPlot(title= "Basic Control Plot", height = 320, width = 480)
+    p <-ggplot2::ggplot(controlData,ggplot2::aes(time,y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
+      ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred")+
+      ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred")+
+      ggplot2::scale_color_manual(name="Out of Bounds",values=c("#4E84C4","#D16103")) + ggplot2::theme_bw()
+
+
+  if(options$controlLineType %in% c("line","both"))
+    p <- p + ggplot2::geom_line(size=1,ggplot2::aes(colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit)),
+                                lineend = "round",linejoin ="round")
+  if(options$controlLineType %in% c("points","both"))
+    p <- p + ggplot2::geom_point(size=2)
+
+  if(options$xAxisLimit == "controlBounds")
+    p <- p + ggplot2::coord_cartesian(ylim=c(2*lowerLimit,
+                                             2*upperLimit))
+    #TODO: fix control bound ylim as it doesn't get right data
+
   predanControlPlot$plotObject <- p
   #jaspResults[["testPlot"]] <- predanControlPlot
-  predanDescriptivePlots[["predanControlPlot"]] <- predanControlPlot
+  if(!zoom)
+    predanDescriptivePlots[["predanControlPlot"]] <- predanControlPlot
+  else
+    predanDescriptivePlots[["predanControlPlotZoom"]] <- predanControlPlot
   return()
+}
+
+
+.predanComputeBinaryResults <- function(jaspResults,dataset,options,ready){
+  if(!ready | !options$binaryControlChartCheck) return()
+
+  if (is.null(jaspResults[["predanResults"]][["predanBinaryBounds"]])){
+    predanBinaryBoundsState <- createJaspState()
+
+    predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+    controlData <- predanResults[[1]]
+
+    #TODO: insert depend on all boundary setting
+    if(options$binaryControlMethod=="state space")
+      predanBinaryBounds <- .predanBinaryStateSpaceResults(jaspResults,controlData,dataset,options)
+    else if (options$binaryControlMethod == "beta distribution")
+      predanBinaryBoundsState$object <- predanBinaryBounds
+
+
+    jaspResults[["predanResults"]][["predanBinaryBounds"]] <- predanBinaryBoundsState
+  }
+  return()
+}
+
+
+.predanBinaryStateSpaceResults <- function(jaspResults,controlData,dataset,options){
+
+  y <- controlData$outBoundNum
+
+  ss <- list()
+  ss <- bsts::AddLocalLevel(ss,y,sigma.prior = Boom::SdPrior(sigma.guess = .1,
+                                                       sample.size = 1,
+                                                       upper.limit = 1),
+                            initial.state.prior = Boom::NormalPrior(0, 5))
+
+  ts.model <- bsts::bsts(y , ss, niter = 4000,
+                   family = "logit")
+
+  return(ts.model)
+
 }
 
 
 
 
+
+
+
+
+#.predanBinaryControlChart <- function(jaspResults,dataset,options,ready) {
+#  if(!ready | !options$binaryControlChartCheck) return()
+#
+#  predanBinaryControl <- createJaspContainer(title=gettext("BinaryControl"))
+#
+#  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+#
+#  if(options$binaryControlMethod == "state space"){
+#    .predanBinaryStateSpaceResultsHelper(jaspResults,predanResults,dataset,options)
+#    .predanBinaryControlStateSpacePlot(jaspResults,predanResults,dataset,options)
+#  }
+
+
+
+#  return()
+#}
+#
+#.predanBinaryControlStateSpacePlot <- function(jaspResults,predanResults,dataset,options) {
+#
+#
+#}
 
