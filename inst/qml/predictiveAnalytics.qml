@@ -22,33 +22,51 @@ Form
 		Group
 		{
 			title: qsTr("Error Bound Selection Method")
-
-			RadioButtonGroup
+			DropDown
 			{
-				name: "errorBoundMethod"
+				name: "errorBoundMethodDrop"
+				id: methodSelection
+				values:
+ 				[
+    				{ label: "Manual Bounds", value: "manualBound"},
+    				{ label: "Data Driven", value: "stdDevBound"}
+  				]
+			}
+
+			Group
+			{
+				visible: methodSelection.currentValue == "manualBound"
 				
-				RadioButton
-				{
-					value: "manualBound"
-					label: qsTr("Manual bounds")
+				IntegerField{name: "controlMean"; label: qsTr("Control Mean"); defaultValue: Null; negativeValues: true}
+				IntegerField{name: "controlError"; label: qsTr("Control Error"); defaultValue: 0; negativeValues: false}
+			}
 
-					IntegerField{name: "controlMean"; label: qsTr("Control Mean"); defaultValue: Null; negativeValues: true }
-					IntegerField{name: "controlError"; label: qsTr("Control Error"); defaultValue: 0; negativeValues: false }
-
-				}
-				RadioButton
-				{
-					value: "stdDevBound"
-					label: qsTr("Standard Deviation Bound")
-					IntegerField{name: "sigmaBound"; label: qsTr("σ threshold"); defaultValue: 2}
+			Group
+			{
+				visible: methodSelection.currentValue == "stdDevBound"
+				IntegerField{name: "sigmaBound"; label: qsTr("σ threshold"); defaultValue: 2}
 					CheckBox
 					{
 						name: "controlPeriodCheck"
-						label: qsTr("Custom Control Period")
-						DoubleField{name:"controlPeriod"; afterLabel: qsTr("time points"); defaultValue: 20}
+						label: qsTr("Custom Period")
+						childrenOnSameRow: false
+						// fix that end period is from start to nrow of series
+						Group
+						{
+							columns: 2
+							IntegerField{name:"controlPeriodStart"; label: qsTr("Start"); defaultValue: 0}
+							IntegerField{name:"controlPeriodEnd"; label: qsTr("End"); defaultValue: 500}
+						}
 					}
-				}
+
+			
 			}
+			
+				
+
+				
+			
+			
 		}
 		Group
 		{

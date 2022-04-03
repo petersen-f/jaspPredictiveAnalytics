@@ -76,7 +76,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     #TODO: insert depend on all boundary setting
     predanBounds <- .predanComputeBounds(dataset,options)
     predanBoundsState$object <- predanBounds
-    predanBoundsState$dependOn(c("errorBoundMethod","controlMean","controlError","sigmaBound","controlPeriodCheck","controlPeriod"))
+    predanBoundsState$dependOn(c("errorBoundMethodDrop","controlMean","controlError","sigmaBound","controlPeriodCheck","controlPeriodStart","controlPeriodEnd"))
     jaspResults[["predanResults"]][["predanBounds"]] <- predanBoundsState
   }
 
@@ -87,15 +87,18 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   dataControl <- data.frame(y = dataset[,options[["dependent"]]])
   dataControl$time <- 1:nrow(dataControl)
 
-  if(options$errorBoundMethod == "manualBound") {
+  if(options$errorBoundMethodDrop == "manualBound") {
 
     upperLimit <- options$controlMean + options$controlError
     lowerLimit <- options$controlMean - options$controlError
     plotLimit <- c(options$controlMean + 2*options$controlError,options$controlMean - 2*options$controlError)
   } else {
-    controlPeriod <- seq_len(ifelse(options$controlPeriodCheck,
-                                    options$controlPeriod,
-                                    nrow(dataControl)))
+
+    if (options$controlPeriodCheck & options$controlPeriodEnd > 0){
+      controlPeriod <- seq(options$controlPeriodStart,options$controlPeriodEnd,1)
+    } else
+      controlPeriod <- seq_len(nrow(dataControl))
+
     upperLimit <- mean(dataControl$y[controlPeriod]) + sd(dataControl$y[controlPeriod])*options$sigmaBound
     lowerLimit <- mean(dataControl$y[controlPeriod]) - sd(dataControl$y[controlPeriod])*options$sigmaBound
     plotLimit <- c(mean(dataControl$y[controlPeriod]) + 2*sd(dataControl$y[controlPeriod])*options$sigmaBound,
