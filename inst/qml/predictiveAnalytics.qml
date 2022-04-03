@@ -161,7 +161,7 @@ Form
 				{
 					name: "binaryControlMethod"
 					label: "Select Control Method"
-					values: ["State Space", "beta distribution"]
+					values: ["state space", "beta distribution"]
 
 				}
 			}

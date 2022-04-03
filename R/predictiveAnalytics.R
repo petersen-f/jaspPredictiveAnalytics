@@ -26,7 +26,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanComputeResults(jaspResults, dataset, options, ready)
     .predanPlotsDescriptives(jaspResults,dataset,options,ready)
     .predanComputeBinaryResults(jaspResults,dataset,options,ready)
-    #.predanBinaryControlChart(jaspResults,dataset,options,ready)
+    .predanBinaryControlChart(jaspResults,dataset,options,ready)
     return()
 }
 
@@ -55,6 +55,23 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
   return()
+}
+
+
+###### Helper Functions
+extractState <- function(model,logit=F){
+  state <- model$state.contributions
+  burn <- bsts::SuggestBurn(0.1,model)
+  state <- state[-(1:burn), , , drop = FALSE]
+  state <- rowSums(aperm(state, c(1, 3, 2)), dims = 2)
+  if(logit)
+    state <- plogis(state)
+  res <- data.frame(mean = colMeans(state),
+                    lowerCI = apply(state,2,quantile,probs= 0.025),
+                    higherCI= apply(state,2,quantile,probs= 0.975),
+                    actualData = model$original.series,
+                    time = 1:length(model$original.series))
+  return(res)
 }
 
 
@@ -107,7 +124,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
       controlPeriod <- seq_len(nrow(dataControl))
 
     trimMean <- ifelse(options$trimmedMeanCheck,options$trimmedMeanPercent,0)
-    upperLimit <- mean(dataControl$y[controlPeriod],trim=trimMean) + sd(dataControl$y[controlPeriod])*options$sigmaBound
+    upperLimit <- mean(dataControl$y[controlPeriod],trim=trimMean) + sd(dataControl$y[controlPeriod],)*options$sigmaBound
     lowerLimit <- mean(dataControl$y[controlPeriod],trim=trimMean) - sd(dataControl$y[controlPeriod])*options$sigmaBound
     plotLimit <- c(mean(dataControl$y[controlPeriod],trim=trimMean) + 2*sd(dataControl$y[controlPeriod])*options$sigmaBound,
                    mean(dataControl$y[controlPeriod],trim=trimMean) - 2*sd(dataControl$y[controlPeriod])*options$sigmaBound)
@@ -196,10 +213,11 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     controlData <- predanResults[[1]]
 
     #TODO: insert depend on all boundary setting
-    if(options$binaryControlMethod=="state space")
+    #if(options$binaryControlMethod=="state space")
       predanBinaryBounds <- .predanBinaryStateSpaceResults(jaspResults,controlData,dataset,options)
-    else if (options$binaryControlMethod == "beta distribution")
-      predanBinaryBoundsState$object <- predanBinaryBounds
+    #else if (options$binaryControlMethod == "beta distribution")
+
+    predanBinaryBoundsState$object <- predanBinaryBounds
 
 
     jaspResults[["predanResults"]][["predanBinaryBounds"]] <- predanBinaryBoundsState
@@ -218,7 +236,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
                                                        upper.limit = 1),
                             initial.state.prior = Boom::NormalPrior(0, 5))
 
-  ts.model <- bsts::bsts(y , ss, niter = 4000,
+  ts.model <- bsts::bsts(y , ss, niter = 2000,
                    family = "logit")
 
   return(ts.model)
@@ -232,25 +250,38 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 
-#.predanBinaryControlChart <- function(jaspResults,dataset,options,ready) {
-#  if(!ready | !options$binaryControlChartCheck) return()
-#
-#  predanBinaryControl <- createJaspContainer(title=gettext("BinaryControl"))
-#
-#  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
-#
-#  if(options$binaryControlMethod == "state space"){
-#    .predanBinaryStateSpaceResultsHelper(jaspResults,predanResults,dataset,options)
-#    .predanBinaryControlStateSpacePlot(jaspResults,predanResults,dataset,options)
-#  }
+.predanBinaryControlChart <- function(jaspResults,dataset,options,ready) {
+  if(!ready | !options$binaryControlChartCheck) return()
+
+  predanBinaryControlPlots <- createJaspContainer(title=gettext("Binary Control Plots"))
+
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+
+  #if(options$binaryControlMethod == "state space"){
+    tsModel <- jaspResults[["predanResults"]][["predanBinaryBounds"]]$object
+    .predanBinaryControlStateSpacePlot(jaspResults,predanBinaryControlPlots,tsModel,predanResults,dataset,options)
+  #}
 
 
+  jaspResults[["predanMainContainer"]][["predanBinaryControlPlots"]] <- predanBinaryControlPlots
+  return()
+}
+#
+.predanBinaryControlStateSpacePlot <- function(jaspResults,predanBinaryControlPlots,tsModel,predanResults,dataset,options) {
 
-#  return()
-#}
-#
-#.predanBinaryControlStateSpacePlot <- function(jaspResults,predanResults,dataset,options) {
-#
-#
-#}
+  predanBinaryControlStateSpacePlot <- createJaspPlot(title= "Binary state space plot", height = 320, width = 480)
+
+  results <- extractState(tsModel,T)
+  p <- ggplot2::ggplot(results,ggplot2::aes(x=time,y=mean)) +
+    ggplot2::geom_ribbon(mapping=ggplot2::aes(ymin=lowerCI,ymax =higherCI),
+                         fill ="blue",alpha=0.5) + ggplot2::xlab("Time") +
+    ggplot2::ylab("Distribution") +
+    ggplot2::geom_line(size=0.7)  + ggplot2::theme_classic() +
+    ggplot2::geom_point(ggplot2::aes(y=actualData),size=0.5)
+
+  predanBinaryControlStateSpacePlot$plotObject <- p
+
+  predanBinaryControlPlots[["predanBinaryControlStateSpacePlot"]] <- predanBinaryControlStateSpacePlot
+  return()
+}
 
