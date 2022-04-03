@@ -76,7 +76,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     #TODO: insert depend on all boundary setting
     predanBounds <- .predanComputeBounds(dataset,options)
     predanBoundsState$object <- predanBounds
-    predanBoundsState$dependOn(c("errorBoundMethodDrop","controlMean","controlError","sigmaBound","controlPeriodCheck","controlPeriodStart","controlPeriodEnd"))
+    predanBoundsState$dependOn(c("errorBoundMethodDrop","manualBoundMethod","manualBoundMean","manualBoundErrorBound","manualUpperBound","manualUpperLower","sigmaBound","controlPeriodCheck","controlPeriodStart","controlPeriodEnd","trimmedMeanCheck","trimmedMeanPercent"))
     jaspResults[["predanResults"]][["predanBounds"]] <- predanBoundsState
   }
 
@@ -87,11 +87,18 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   dataControl <- data.frame(y = dataset[,options[["dependent"]]])
   dataControl$time <- 1:nrow(dataControl)
 
-  if(options$errorBoundMethodDrop == "manualBound") {
+  if(options$errorBoundMethodDrop == "manualBound" & options$manualBoundMethod == "manualBoundUniform") {
 
-    upperLimit <- options$controlMean + options$controlError
-    lowerLimit <- options$controlMean - options$controlError
-    plotLimit <- c(options$controlMean + 2*options$controlError,options$controlMean - 2*options$controlError)
+    upperLimit <- options$manualBoundMean + options$manualBoundErrorBound
+    lowerLimit <- options$manualBoundMean - options$manualBoundErrorBound
+    plotLimit <- options$manualBoundMean + c(2*options$manualBoundErrorBound,-2*options$manualBoundErrorBound)
+  } else if(options$errorBoundMethodDrop == "manualBound" && options$manualBoundMethod == "manualBoundCustom"){
+
+    upperLimit <- options$manualUpperBound
+    lowerLimit <- options$manualLowerBound
+    boundMean <- (upperLimit + lowerLimit)/2
+    plotLimit <- boundMean + c(1,-1)*2*(upperLimit-boundMean)
+
   } else {
 
     if (options$controlPeriodCheck & options$controlPeriodEnd > 0){
@@ -99,10 +106,11 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     } else
       controlPeriod <- seq_len(nrow(dataControl))
 
-    upperLimit <- mean(dataControl$y[controlPeriod]) + sd(dataControl$y[controlPeriod])*options$sigmaBound
-    lowerLimit <- mean(dataControl$y[controlPeriod]) - sd(dataControl$y[controlPeriod])*options$sigmaBound
-    plotLimit <- c(mean(dataControl$y[controlPeriod]) + 2*sd(dataControl$y[controlPeriod])*options$sigmaBound,
-                   mean(dataControl$y[controlPeriod]) - 2*sd(dataControl$y[controlPeriod])*options$sigmaBound)
+    trimMean <- ifelse(options$trimmedMeanCheck,options$trimmedMeanPercent,0)
+    upperLimit <- mean(dataControl$y[controlPeriod],trim=trimMean) + sd(dataControl$y[controlPeriod])*options$sigmaBound
+    lowerLimit <- mean(dataControl$y[controlPeriod],trim=trimMean) - sd(dataControl$y[controlPeriod])*options$sigmaBound
+    plotLimit <- c(mean(dataControl$y[controlPeriod],trim=trimMean) + 2*sd(dataControl$y[controlPeriod])*options$sigmaBound,
+                   mean(dataControl$y[controlPeriod],trim=trimMean) - 2*sd(dataControl$y[controlPeriod])*options$sigmaBound)
   }
 
 

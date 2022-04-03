@@ -29,22 +29,61 @@ Form
 				values:
  				[
     				{ label: "Manual Bounds", value: "manualBound"},
-    				{ label: "Data Driven", value: "stdDevBound"}
+    				{ label: "Data Based", value: "stdDevBound"}
   				]
 			}
 
 			Group
 			{
 				visible: methodSelection.currentValue == "manualBound"
+
+				RadioButtonGroup
+				{
+					name: "manualBoundMethod"
+					RadioButton 
+					{ 
+						value: "manualBoundUniform"
+						checked: true
+						childrenOnSameRow: true
+						Group
+						{
+							columns: 2
+							DoubleField{name: "manualBoundMean";label: "Mean"; negativeValues: true}
+							DoubleField{name: "manualBoundErrorBound";label: "+/-"}
+						}
+						
+						
+
+
+					}
+					RadioButton 
+					{ 
+						value: "manualBoundCustom"
+						childrenOnSameRow: true
+						Group
+						{
+							columns: 1
+							DoubleField{name: "manualUpperBound";label: "Upper bound"; negativeValues: true}
+							DoubleField{name: "manualLowerBound";label: "Lower bound"; negativeValues: true}
+						}
+						
+					}
+				}
 				
-				IntegerField{name: "controlMean"; label: qsTr("Control Mean"); defaultValue: Null; negativeValues: true}
-				IntegerField{name: "controlError"; label: qsTr("Control Error"); defaultValue: 0; negativeValues: false}
+				//IntegerField{name: "controlMean"; label: qsTr("Control Mean"); defaultValue: Null; negativeValues: true}
+				//IntegerField{name: "controlError"; label: qsTr("Control Error"); defaultValue: 0; negativeValues: false}
 			}
 
 			Group
 			{
 				visible: methodSelection.currentValue == "stdDevBound"
 				IntegerField{name: "sigmaBound"; label: qsTr("σ threshold"); defaultValue: 2}
+				CheckBox
+				{
+					name: "trimmedMeanCheck"
+					label: qsTr("Trimmed mean")
+					DoubleField{name: "trimmedMeanPercent";label: qsTr("Percent");	max: 0.5}
+				}
 					CheckBox
 					{
 						name: "controlPeriodCheck"
@@ -55,8 +94,10 @@ Form
 						{
 							columns: 2
 							IntegerField{name:"controlPeriodStart"; label: qsTr("Start"); defaultValue: 0}
-							IntegerField{name:"controlPeriodEnd"; label: qsTr("End"); defaultValue: 500}
+							IntegerField{name:"controlPeriodEnd"; label: qsTr("End"); defaultValue: 0}
+
 						}
+						
 					}
 
 			
