@@ -76,6 +76,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     #TODO: insert depend on all boundary setting
     predanBounds <- .predanComputeBounds(dataset,options)
     predanBoundsState$object <- predanBounds
+    predanBoundsState$dependOn(c("errorBoundMethod","controlMean","controlError","sigmaBound","controlPeriodCheck","controlPeriod"))
     jaspResults[["predanResults"]][["predanBounds"]] <- predanBoundsState
   }
 
@@ -87,15 +88,18 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   dataControl$time <- 1:nrow(dataControl)
 
   if(options$errorBoundMethod == "manualBound") {
+
     upperLimit <- options$controlMean + options$controlError
     lowerLimit <- options$controlMean - options$controlError
+    plotLimit <- c(options$controlMean + 2*options$controlError,options$controlMean - 2*options$controlError)
   } else {
     controlPeriod <- seq_len(ifelse(options$controlPeriodCheck,
                                     options$controlPeriod,
                                     nrow(dataControl)))
     upperLimit <- mean(dataControl$y[controlPeriod]) + sd(dataControl$y[controlPeriod])*options$sigmaBound
     lowerLimit <- mean(dataControl$y[controlPeriod]) - sd(dataControl$y[controlPeriod])*options$sigmaBound
-
+    plotLimit <- c(mean(dataControl$y[controlPeriod]) + 2*sd(dataControl$y[controlPeriod])*options$sigmaBound,
+                   mean(dataControl$y[controlPeriod]) - 2*sd(dataControl$y[controlPeriod])*options$sigmaBound)
   }
 
 
@@ -103,7 +107,12 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   dataControl$outBound <- ifelse(dataControl$y > upperLimit | dataControl$y < lowerLimit,T,F)
   dataControl$outBoundNum <- as.numeric(dataControl$outBound)
 
-  return(list(dataControl,upperLimit,lowerLimit))
+  results <- list(dataControl = dataControl,
+                  upperLimit = upperLimit,
+                  lowerLimit = lowerLimit,
+                  plotLimit = plotLimit)
+
+  return(results)
 }
 
 .predanPlotsDescriptives <- function(jaspResults,dataset,options,ready) {
@@ -111,28 +120,15 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   predanDescriptivePlots <- createJaspContainer(title=gettext("Descriptives"))
 
-  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
-
-  controlData <- predanResults[[1]]
-  #TODO: fix error bound method selection and replace above code -> doesn't work to extract bounds from results object
-  if(options$errorBoundMethod == "manualBound") {
-    upperLimit <- options$controlMean + options$controlError
-    lowerLimit <- options$controlMean - options$controlError
-  } else {
-    controlPeriod <- seq_len(ifelse(options$controlPeriodCheck,
-                                    options$controlPeriod,
-                                    nrow(controlData)))
-    upperLimit <- mean(controlData$y[controlPeriod]) + sd(controlData$y[controlPeriod])*options$sigmaBound
-    lowerLimit <- mean(controlData$y[controlPeriod]) - sd(controlData$y[controlPeriod])*options$sigmaBound
-  }
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]][["object"]]
 
 
 
   if(options$controlPlotCheck)
-    .predanBasicControlPlot(jaspResults,predanDescriptivePlots,controlData,options,zoom=F,upperLimit,lowerLimit)
+    .predanBasicControlPlot(jaspResults,predanResults,predanDescriptivePlots,options,zoom=F)
 
   if(options$zoomControlPlotCheck && options$zoomControlLength >0)
-    .predanBasicControlPlot(jaspResults,predanDescriptivePlots,controlData,options,zoom=T,upperLimit,lowerLimit)
+    .predanBasicControlPlot(jaspResults,predanResults,predanDescriptivePlots,options,zoom=T)
 
 
   jaspResults[["predanMainContainer"]][["predanDescriptivePlots"]] <- predanDescriptivePlots
@@ -141,8 +137,13 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 
-.predanBasicControlPlot <- function(jaspResults,predanDescriptivePlots,controlData,options,zoom,upperLimit,lowerLimit){
+.predanBasicControlPlot <- function(jaspResults,predanResults,predanDescriptivePlots,options,zoom){
 
+  controlData <- predanResults[["dataControl"]]
+
+  upperLimit <- predanResults[["upperLimit"]]
+  lowerLimit <- predanResults[["lowerLimit"]]
+  plotLimit <- predanResults[["plotLimit"]]
   if(zoom)
     controlData <- tail(controlData,options$zoomControlLength)
 
@@ -161,9 +162,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     p <- p + ggplot2::geom_point(size=2)
 
   if(options$xAxisLimit == "controlBounds")
-    p <- p + ggplot2::coord_cartesian(ylim=c(2*lowerLimit,
-                                             2*upperLimit))
-    #TODO: fix control bound ylim as it doesn't get right data
+    p <- p + ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
+                                             plotLimit[[1]]))
 
   predanControlPlot$plotObject <- p
   #jaspResults[["testPlot"]] <- predanControlPlot
