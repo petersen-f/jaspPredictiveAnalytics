@@ -157,6 +157,16 @@ Form
 	}
 	Section
 	{
+		title: qsTr("Time Series Diagnostics")
+		CheckBox
+		{
+			name: "acfPlotCheck"
+			label: "Autocorrelation function plot"
+			IntegerField{name:"options$acfLagsMax"; label: qsTr("Lags"); defaultValue: 30}
+		}
+	}
+	Section
+	{
 		title: qsTr("Binary Control Analysis")
 		//Group
 		//{

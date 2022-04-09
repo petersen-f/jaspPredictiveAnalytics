@@ -25,6 +25,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanMainContainer(jaspResults, ready)
     .predanComputeResults(jaspResults, dataset, options, ready)
     .predanPlotsDescriptives(jaspResults,dataset,options,ready)
+    .predanACFDescriptives(jaspResults,dataset,options,ready)
     .predanComputeBinaryResults(jaspResults,dataset,options,ready)
     .predanBinaryControlChart(jaspResults,dataset,options,ready)
     return()
@@ -77,7 +78,6 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 .predanComputeResults <- function(jaspResults, dataset, options,ready) {
 
-  ##TODO: store limits somehwere properly and not in DF - maybe list?
   if(!ready) return()
 
   if (is.null(jaspResults[["predanResults"]])) {
@@ -213,6 +213,75 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     predanDescriptivePlots[["predanControlPlotZoom"]] <- predanControlPlot
   return()
 }
+
+
+.predanACFDescriptives <- function(jaspResults,dataset,options,ready){
+  if((!options$acfPlotCheck || !ready) || !is.null(jaspResults[["predanMainContainer"]][["acfPlots"]])) return()
+
+  acfPlots <- createJaspContainer(title= gettext("Autocorrelation Function Plots"))
+  # TODO add dependencies
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  dataControl <- predanResults[[1]]
+
+  .predanACFPlots(jaspResults,dataControl,options,acfPlots)
+
+  jaspResults[["predanMainContainer"]][["acfPlots"]] <- acfPlots
+
+  return()
+}
+
+.predanACFPlots <- function(jaspResults,dataControl,options,acfPlots){
+  y <- na.omit(dataControl$y)
+
+  ac <- acf(y, plot = F, lag.max = options$acfLagsMax)
+  acP <- pacf(y, plot = F, lag.max = options$acfLagsMax)
+  xBreaks <- jaspGraphs::getPrettyAxisBreaks(ac$lag)
+  yRange <- ac$acf
+  ci <- T
+  ciValue = 0.95
+  p <- ggplot2::ggplot()
+  if (ci) {
+    clim      <- qnorm((1 + ciValue) / 2) / sqrt(ac$n.used)
+    dfSegment <- data.frame(x = min(xBreaks), xend = max(xBreaks), y = c(clim, -clim))
+    yRange    <- c(yRange, clim, -clim)
+
+    p <- p +
+      ggplot2::geom_segment(ggplot2::aes(x = x, xend = xend, y = y, yend = y),
+                            linetype = "dashed", color = "blue", data = dfSegment)
+  }
+
+  yBreaks <- jaspGraphs::getPrettyAxisBreaks(yRange)
+
+  dat <- data.frame(acf = ac$acf, lag = ac$lag, pacf = c(acP$acf,NA))
+
+
+  acfPlot <- p +
+    ggplot2::geom_linerange(data = dat, ggplot2::aes(x = lag, ymin = 0, ymax = acf), size = 1) +
+    ggplot2::labs(x = "Lag", y = "ACF") +
+    ggplot2::geom_hline(yintercept = 0) +
+    jaspGraphs::geom_rangeframe() +
+    jaspGraphs::themeJaspRaw()
+  pacfPlot <- p +
+    ggplot2::geom_linerange(data = dat, ggplot2::aes(x = lag, ymin = 0, ymax = pacf), size = 1) +
+    ggplot2::labs(x = "Lag", y = "Partial ACF") +
+    ggplot2::geom_hline(yintercept = 0) +
+    jaspGraphs::geom_rangeframe() +
+    jaspGraphs::themeJaspRaw()
+
+  predanACFPlot <- createJaspPlot(title= "Autocorrelation Function", height = 340, width = 480)
+
+  predanPACFPlot <- createJaspPlot(title= "Partial Autocorrelation Function", height = 340, width = 480)
+
+  predanACFPlot$plotObject <- acfPlot
+  predanPACFPlot$plotObject <- pacfPlot
+
+  acfPlots[["predanACFPlot"]] <- predanACFPlot
+  acfPlots[["predanPACFPlot"]] <- predanPACFPlot
+  return()
+}
+
+
+
 
 
 .predanComputeBinaryResults <- function(jaspResults,dataset,options,ready){
