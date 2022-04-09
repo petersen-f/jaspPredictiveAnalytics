@@ -116,7 +116,7 @@ Form
 			CheckBox
 			{
 				name: "controlPlotCheck"
-				label: qsTr("Control plot show")
+				label: qsTr("Display control chart")
 				RadioButtonGroup
             	{
                 	name: "controlLineType"
@@ -134,14 +134,22 @@ Form
 					RadioButton { value: "allData";	label: qsTr("All data") }
 					RadioButton { value: "controlBounds";	label: qsTr("Control bounds") }
 				}
+
 				CheckBox
-				{
-					name: "zoomControlPlotCheck"
-					label: "Focus on last"
-					childrenOnSameRow: true
-					IntegerField{name: "zoomControlLength"; afterLabel: qsTr("data points"); defaultValue: 0 }
-					
-				}
+					{
+						name: "controlPlotZoomCheck"
+						label: qsTr("Custom Plot Focus")
+						childrenOnSameRow: false
+						// fix that end period is from start to nrow of series
+						Group
+						{
+							columns: 2
+							IntegerField{name:"zoomPeriodStart"; label: qsTr("Start"); defaultValue: 0}
+							IntegerField{name:"zoomPeriodEnd"; label: qsTr("End"); defaultValue: 0}
+
+						}
+						
+					}
 			}
 		}
 
@@ -167,7 +175,7 @@ Form
 
 				}
 
-				DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit");defaultValue: 0.5}
+				DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit")}
 				Group
 				{
 					visible: binaryMethodSelection.currentValue == "state space"
