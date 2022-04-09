@@ -77,7 +77,7 @@ Form
 			Group
 			{
 				visible: methodSelection.currentValue == "stdDevBound"
-				IntegerField{name: "sigmaBound"; label: qsTr("σ threshold"); defaultValue: 2}
+				DoubleField{name: "sigmaBound"; label: qsTr("σ threshold"); defaultValue: 2}
 				CheckBox
 				{
 					name: "trimmedMeanCheck"
@@ -150,22 +150,36 @@ Form
 	Section
 	{
 		title: qsTr("Binary Control Analysis")
-		Group
-		{
+		//Group
+		//{
 			CheckBox 
 			{
 				name: "binaryControlChartCheck"
+				
 				label: "Show binary control chart"
 
 				DropDown
 				{
 					name: "binaryControlMethod"
+					id: binaryMethodSelection
 					label: "Select Control Method"
-					values: ["state space", "beta distribution"]
+					values: ["state space", "rolling average"]
 
 				}
+
+				DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit");defaultValue: 0.5}
+				Group
+				{
+					visible: binaryMethodSelection.currentValue == "state space"
+					DoubleField
+					{
+						name: "binaryStateSpaceNiter"
+						label: qsTr("MCMC samples")
+						defaultValue: 500
+					}
+				}
 			}
-		}
+		//}
 	}
 
 	Section

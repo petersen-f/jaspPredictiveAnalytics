@@ -59,7 +59,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 ###### Helper Functions
-extractState <- function(model,logit=F){
+.extractState <- function(model,logit=F){
   state <- model$state.contributions
   burn <- bsts::SuggestBurn(0.1,model)
   state <- state[-(1:burn), , , drop = FALSE]
@@ -236,7 +236,7 @@ extractState <- function(model,logit=F){
                                                        upper.limit = 1),
                             initial.state.prior = Boom::NormalPrior(0, 5))
 
-  ts.model <- bsts::bsts(y , ss, niter = 2000,
+  ts.model <- bsts::bsts(y , ss, niter = options$binaryStateSpaceNiter,
                    family = "logit")
 
   return(ts.model)
@@ -271,13 +271,16 @@ extractState <- function(model,logit=F){
 
   predanBinaryControlStateSpacePlot <- createJaspPlot(title= "Binary state space plot", height = 320, width = 480)
 
-  results <- extractState(tsModel,T)
+  results <- .extractState(tsModel,T)
   p <- ggplot2::ggplot(results,ggplot2::aes(x=time,y=mean)) +
     ggplot2::geom_ribbon(mapping=ggplot2::aes(ymin=lowerCI,ymax =higherCI),
                          fill ="blue",alpha=0.5) + ggplot2::xlab("Time") +
     ggplot2::ylab("Distribution") +
     ggplot2::geom_line(size=0.7)  + ggplot2::theme_classic() +
     ggplot2::geom_point(ggplot2::aes(y=actualData),size=0.5)
+
+  if(options$binaryControlOutPropLimit > 0)
+    p <- p + ggplot2::geom_hline(yintercept = options$binaryControlOutPropLimit,linetype="dashed",color="darkred")
 
   predanBinaryControlStateSpacePlot$plotObject <- p
 
