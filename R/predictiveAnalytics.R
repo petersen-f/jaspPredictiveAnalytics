@@ -26,6 +26,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanComputeResults(jaspResults, dataset, options, ready)
     .predanPlotsDescriptives(jaspResults,dataset,options,ready)
     .predanACFDescriptives(jaspResults,dataset,options,ready)
+    .predanHistogramPlot(jaspResults,dataset,options,ready)
     .predanComputeBinaryResults(jaspResults,dataset,options,ready)
     .predanBinaryControlChart(jaspResults,dataset,options,ready)
     return()
@@ -76,6 +77,22 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 }
 
 
+##### dependencies
+.boundDependencies <- function(){
+  return(c("errorBoundMethodDrop",
+           "manualBoundMethod",
+           "manualBoundMean",
+           "manualBoundErrorBound",
+           "manualUpperBound",
+           "manualUpperLower",
+           "sigmaBound",
+           "controlPeriodCheck",
+           "controlPeriodStart",
+           "controlPeriodEnd",
+           "trimmedMeanCheck",
+           "trimmedMeanPercent"))
+}
+
 .predanComputeResults <- function(jaspResults, dataset, options,ready) {
 
   if(!ready) return()
@@ -93,7 +110,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     #TODO: insert depend on all boundary setting
     predanBounds <- .predanComputeBounds(dataset,options)
     predanBoundsState$object <- predanBounds
-    predanBoundsState$dependOn(c("errorBoundMethodDrop","manualBoundMethod","manualBoundMean","manualBoundErrorBound","manualUpperBound","manualUpperLower","sigmaBound","controlPeriodCheck","controlPeriodStart","controlPeriodEnd","trimmedMeanCheck","trimmedMeanPercent"))
+    predanBoundsState$dependOn(.boundDependencies())
     jaspResults[["predanResults"]][["predanBounds"]] <- predanBoundsState
   }
 
@@ -279,6 +296,61 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   acfPlots[["predanPACFPlot"]] <- predanPACFPlot
   return()
 }
+
+
+.predanHistogramPlot <- function(jaspResults,dataset,options,ready){
+  if((!ready || !options$outlierHistogramCheck)|| !is.null(jaspResults[["predanMainContainer"]][["histogramPlot"]] )) return()
+
+  if(is.null(jaspResults[["predanMainContainer"]][["histogramPlot"]] ))
+    histogramPlot <- createJaspPlot(title= gettext("Histogram Plot"), height = 360, width = 450)
+
+  histogramPlot$dependOn(c(.boundDependencies(),"outlierHistogramCheck","outlierHistogramDensity"))
+
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  dataControl <- predanResults[[1]]
+
+  .predanHistogramPlotFill(jaspResults,dataControl,options,histogramPlot)
+
+  jaspResults[["predanMainContainer"]][["histogramPlot"]] <- histogramPlot
+
+  return()
+
+
+}
+
+
+.predanHistogramPlotFill <- function(jaspResults,dataControl,options,histogramPlot){
+
+  sigma.g1 <- sqrt((6*(length(dataControl$y) - 2)) / ((length(dataControl$y) + 1)*(length(dataControl$y) + 3)))
+  g1 <- mean(abs(dataControl$y)^3)
+  k <- 1 + log2(length(dataControl$y)) + log2(1 + (g1 / sigma.g1))
+  binWidthType <- k
+
+  h <- hist(dataControl$y, plot = T, breaks = binWidthType)
+  xticks <- base::pretty(c(dataControl$y, h$breaks), min.n = 3)
+
+  p <- ggplot2::ggplot(data= dataControl,mapping = ggplot2::aes(x = y)) +
+    ggplot2::geom_histogram(ggplot2::aes(y = ..density..,
+                                         fill=outBound),
+                            bins=binWidthType,
+                            breaks = h[["breaks"]],
+                            colour = 1) +
+    ggplot2::scale_fill_manual(values=c("#4E84C4","#D16103")) +
+    ggplot2::ylab("") +
+    ggplot2::scale_x_continuous( breaks = xticks,limits = c(xticks[1],max(xticks))) +
+    jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe()
+
+  if(options$outlierHistogramDensity)
+    p <- p + ggplot2::geom_density(ggplot2::aes(group=outBound))
+
+  histogramPlot$plotObject <- p
+
+  return()
+}
+
+
+
+
 
 
 

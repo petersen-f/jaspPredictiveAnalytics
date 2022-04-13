@@ -164,6 +164,21 @@ Form
 			label: "Autocorrelation function plot"
 			IntegerField{name:"options$acfLagsMax"; label: qsTr("Lags"); defaultValue: 30}
 		}
+
+		Group
+		{
+			title: qsTr("Out-of-bound plots")
+			CheckBox
+			{
+				name: "outlierHistogramCheck"
+				label: qsTr("Display histogram")
+				CheckBox
+				{
+					name: "outlierHistogramDensity"
+					label: qsTr("show densities")
+				}
+			}
+		}
 	}
 	Section
 	{
