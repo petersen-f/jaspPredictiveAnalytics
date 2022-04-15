@@ -27,6 +27,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanPlotsDescriptives(jaspResults,dataset,options,ready)
     .predanACFDescriptives(jaspResults,dataset,options,ready)
     .predanHistogramPlot(jaspResults,dataset,options,ready)
+    .predanDiagnosticTables(jaspResults, dataset, options,ready)
     .predanComputeBinaryResults(jaspResults,dataset,options,ready)
     .predanBinaryControlChart(jaspResults,dataset,options,ready)
     return()
@@ -151,6 +152,9 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   dataControl$outBound <- ifelse(dataControl$y > upperLimit | dataControl$y < lowerLimit,T,F)
   dataControl$outBoundNum <- as.numeric(dataControl$outBound)
+  dataControl$outBoundArea <- "Inside"
+  dataControl$outBoundArea[dataControl$outBound] <- ifelse(dataControl$y[dataControl$outBound] > upperLimit,"Above","Below")
+
 
   results <- list(dataControl = dataControl,
                   upperLimit = upperLimit,
@@ -299,7 +303,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 .predanHistogramPlot <- function(jaspResults,dataset,options,ready){
-  if((!ready || !options$outlierHistogramCheck)|| !is.null(jaspResults[["predanMainContainer"]][["histogramPlot"]] )) return()
+  if((!ready || !options$outlierHistogramCheck)|| !is.null(jaspResults[["predanMainContainer"]][["histogramPlot"]]) ) return()
 
   if(is.null(jaspResults[["predanMainContainer"]][["histogramPlot"]] ))
     histogramPlot <- createJaspPlot(title= gettext("Histogram Plot"), height = 360, width = 450)
@@ -347,6 +351,81 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   return()
 }
+
+.predanDiagnosticTables <- function(jaspResults,dataset,options,ready){
+  if(!ready) return()
+
+  diagnosticTables <- createJaspContainer(title = "Diagnostic Tables")
+
+  diagnosticTables$dependOn("summaryStatsTableCheck")
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  dataControl <- predanResults[[1]]
+
+  if(options$summaryStatsTableCheck)
+    .predanSummaryTable(dataControl, options, diagnosticTables)
+
+  jaspResults[["predanMainContainer"]][["diagnosticTables"]] <- diagnosticTables
+
+  return()
+
+}
+
+
+.predanSummaryTable <- function(dataControl, options, diagnosticTables){
+
+  summaryTable <- createJaspTable("Control Summary Table")
+
+
+  summaryTable$dependOn("summaryStatsTableCheck")
+  summaryTable$transpose<- TRUE
+  summaryTable$addColumnInfo(name="variable",  title="Control Area", type="string")
+  #summaryTable$addColumnInfo(name="Level",     title="", type="string")
+
+  summaryTable$addColumnInfo(name="mean",     title=gettext("Mean"), type="number")
+  summaryTable$addColumnInfo(name="sd",       title=gettext("SD"),   type="number")
+  summaryTable$addColumnInfo(name="min",      title=gettext("Minimum"),   type="number")
+  summaryTable$addColumnInfo(name="max",      title=gettext("Maximum"),   type="number")
+  summaryTable$addColumnInfo(name="valid",    title=gettext("Valid"),   type="integer")
+  summaryTable$addColumnInfo(name="missing",  title=gettext("Missing"),   type="integer")
+  summaryTable$addColumnInfo(name="percent",  title=gettext("Percent"),   type="number", format= "dp:1;pc")
+
+  tableRes <- do.call(data.frame,
+                      aggregate( y ~ outBoundArea,
+                                 data = dataControl,
+                                 FUN = function(x) c(mean = mean(x),
+                                                     sd = sd(x),
+                                                     min = min(x),
+                                                     max = max(x),
+                                                     valid = sum(!is.na(x)),
+                                                     missing = sum(is.na(x)))
+                                 ))
+
+  tableRes$percent = tableRes[,6]/sum(tableRes[,6])
+
+
+  for(i in 1:nrow(tableRes)){
+    row <- list(
+      variable = tableRes$outBoundArea[i],
+      mean = tableRes[i,2],
+      sd = tableRes[i,3],
+      min = tableRes[i,4],
+      max = tableRes[i,5],
+      valid = tableRes[i,6],
+      missing = tableRes[i,7],
+      percent = tableRes[i,8]
+    )
+    summaryTable$addRows(row)
+  }
+
+
+  diagnosticTables[["summaryTable"]] <- summaryTable
+
+  return()
+}
+
+
+
+
 
 
 

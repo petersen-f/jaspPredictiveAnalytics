@@ -157,7 +157,7 @@ Form
 	}
 	Section
 	{
-		title: qsTr("Time Series Diagnostics")
+		title: qsTr("Diagnostics")
 		CheckBox
 		{
 			name: "acfPlotCheck"
@@ -177,6 +177,22 @@ Form
 					name: "outlierHistogramDensity"
 					label: qsTr("show densities")
 				}
+			}
+		}
+
+		Group
+		{
+			name: "summaryStatsTable"
+			title: qsTr("Summary tables")
+			CheckBox
+			{
+				name: "summaryStatsTableCheck"
+				label: "Display summary statistics table"
+			}
+			CheckBox
+			{
+				name: "outlierTableCheck"
+				label: "Display outlier table"
 			}
 		}
 	}
