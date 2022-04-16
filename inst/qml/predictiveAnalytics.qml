@@ -193,6 +193,7 @@ Form
 			{
 				name: "outlierTableCheck"
 				label: "Display outlier table"
+				CheckBox {name: "outlierTableTransposeCheck"; label: "Transpose table"}
 			}
 		}
 	}

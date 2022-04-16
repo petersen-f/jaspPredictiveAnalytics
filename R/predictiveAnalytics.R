@@ -155,6 +155,10 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   dataControl$outBoundArea <- "Inside"
   dataControl$outBoundArea[dataControl$outBound] <- ifelse(dataControl$y[dataControl$outBound] > upperLimit,"Above","Below")
 
+  dataControl$distance[dataControl$outBound] <- ifelse(dataControl$y[dataControl$outBound] > upperLimit,
+                                                       dataControl$y[dataControl$outBound] - upperLimit,
+                                                       dataControl$y[dataControl$outBound] - lowerLimit)
+
 
   results <- list(dataControl = dataControl,
                   upperLimit = upperLimit,
@@ -357,12 +361,15 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   diagnosticTables <- createJaspContainer(title = "Diagnostic Tables")
 
-  diagnosticTables$dependOn("summaryStatsTableCheck")
+  diagnosticTables$dependOn(c("summaryStatsTableCheck","outlierTableCheck"))
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
   dataControl <- predanResults[[1]]
 
   if(options$summaryStatsTableCheck)
     .predanSummaryTable(dataControl, options, diagnosticTables)
+
+  if(options$outlierTableCheck)
+    .predanOutlierTable(dataControl,options, diagnosticTables)
 
   jaspResults[["predanMainContainer"]][["diagnosticTables"]] <- diagnosticTables
 
@@ -388,6 +395,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   summaryTable$addColumnInfo(name="valid",    title=gettext("Valid"),   type="integer")
   summaryTable$addColumnInfo(name="missing",  title=gettext("Missing"),   type="integer")
   summaryTable$addColumnInfo(name="percent",  title=gettext("Percent"),   type="number", format= "dp:1;pc")
+  summaryTable$addColumnInfo(name="deviation",title=gettext("Average Deviation"),   type="number")
 
   tableRes <- do.call(data.frame,
                       aggregate( y ~ outBoundArea,
@@ -402,6 +410,15 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   tableRes$percent = tableRes[,6]/sum(tableRes[,6])
 
+  tableDeviation <- do.call(data.frame,
+                            aggregate( distance~ outBoundArea,
+                                       data = dataControl,
+                                       FUN = function(x) c(mean = mean(x)
+                                       ) ))
+
+
+  tableRes <- merge(tableRes,tableDeviation,all.x = T)
+
 
   for(i in 1:nrow(tableRes)){
     row <- list(
@@ -412,7 +429,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
       max = tableRes[i,5],
       valid = tableRes[i,6],
       missing = tableRes[i,7],
-      percent = tableRes[i,8]
+      percent = tableRes[i,8],
+      deviation = tableRes[i,9]
     )
     summaryTable$addRows(row)
   }
@@ -425,7 +443,40 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 
+.predanOutlierTable <- function(dataControl,options, diagnosticTables){
 
+  outlierTable <- createJaspTable("Outlier Table")
+
+  outlierTable$dependOn("outlierTableTransposeCheck")
+
+  if(options$outlierTableTransposeCheck)
+    outlierTable$transpose <- TRUE
+
+
+  outlierTable$addColumnInfo(name= "time",      title = "Time point",             type = "integer")
+
+  outlierTable$addColumnInfo(name="variable",   title = "Control area",           type = "string")
+
+  outlierTable$addColumnInfo(name= "value",     title = "Value",                  type = "number", format= "dp:2")
+
+  outlierTable$addColumnInfo(name= "deviation", title = "Deviation",   type = "integer", format= "dp:2")
+
+  for(i in dataControl$time[dataControl$outBound]){
+    row <- list(
+      time = dataControl$time[i],
+      variable = dataControl$outBoundArea[i],
+      value = dataControl$y[i],
+      deviation = dataControl$distance[i])
+
+    outlierTable$addRows(row)
+  }
+
+
+  diagnosticTables[["outlierTable"]] <- outlierTable
+
+  return()
+
+}
 
 
 
@@ -440,6 +491,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   if (is.null(jaspResults[["predanResults"]][["predanBinaryBounds"]])){
     predanBinaryBoundsState <- createJaspState()
+
+    predanBinaryBoundsState$dependOn(c(.boundDependencies(),"binaryControlChartCheck"))
 
     predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
     controlData <- predanResults[[1]]
@@ -488,6 +541,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   predanBinaryControlPlots <- createJaspContainer(title=gettext("Binary Control Plots"))
 
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+
+  predanBinaryControlPlots$dependOn(c(.boundDependencies(),"binaryControlChartCheck"))
 
   #if(options$binaryControlMethod == "state space"){
     tsModel <- jaspResults[["predanResults"]][["predanBinaryBounds"]]$object
