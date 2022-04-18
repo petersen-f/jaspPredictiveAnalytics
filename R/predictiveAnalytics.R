@@ -30,6 +30,9 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanDiagnosticTables(jaspResults, dataset, options,ready)
     .predanComputeBinaryResults(jaspResults,dataset,options,ready)
     .predanBinaryControlChart(jaspResults,dataset,options,ready)
+
+    .predanComputeControlPrediction(jaspResults,dataset,options,ready)
+    .predanControlPredictionChart(jaspResults,dataset,options,ready)
     return()
 }
 
@@ -76,6 +79,61 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
                     time = 1:length(model$original.series))
   return(res)
 }
+
+
+
+
+
+
+
+
+###### one step ahead predictions
+
+.bstsModel <- function(y_model,niter,mod="local"){
+  ss <- list()
+  if(mod=="local")
+    ss <- bsts::AddLocalLevel(state.specification = ss,y=y_model)
+  if(mod=="trend")
+    ss <- bsts::AddLocalLinearTrend(state.specification = ss,y=y_model)
+  if(mod=="ar")
+    ss <- bsts::AddAr(ss,y)
+
+  mod <- bsts::bsts(formula = y_model,ss,niter = niter,seed = 1,ping = 0)
+  return(mod)
+}
+
+.createPredictions <- function(y,niter,model_function=.bstsModel,full_pred=T,mod="local"){
+  one_step_matrix <- matrix(ncol = niter,nrow  = length(y))
+
+  for (i in 2:length(y)) {
+
+
+    y_train <- y[1:i]
+
+
+    model <- model_function(y_model  = y_train,niter = niter,mod=mod)
+    print(i)
+    if(full_pred)
+      one_step_pred <- predict(model,horizon = 1,burn = 0)
+    else
+      one_step_pred <- predict(model,horizon = 1)
+    one_step_matrix[i,1:niter] <- c(one_step_pred$distribution,
+                                    rep(NA,niter-length(one_step_pred$distribution)))
+  }
+
+  return(one_step_matrix)
+
+}
+
+
+
+
+
+
+
+
+
+
 
 
 ##### dependencies
@@ -574,4 +632,119 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   predanBinaryControlPlots[["predanBinaryControlStateSpacePlot"]] <- predanBinaryControlStateSpacePlot
   return()
 }
+
+
+
+.predanComputeControlPrediction <- function(jaspResults,dataset,options,ready){
+  if(!ready || options$controlPredictionEnd==0 || !options$controlPredictionCheck) return()
+
+  predanControlPredictions <- createJaspState()
+
+  predanControlPredictions$dependOn(c("predanControlPredictions","controlPredictionCheck","controlPredictionHorizon"))
+
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  controlData <- predanResults[[1]]
+
+
+  controlPredictionResults <- .predanControlPredictionResults(jaspResults,controlData,dataset,options)
+
+  predanControlPredictions$object <- controlPredictionResults
+
+
+  jaspResults[["predanResults"]][["predanControlPredictions"]] <- predanControlPredictions
+
+  return()
+
+}
+
+
+.predanControlPredictionResults <- function(jaspResults,controlData,dataset,options){
+
+  oneStepPredMatrix <- .createPredictions(y = controlData$y[options$controlPredictionStart:options$controlPredictionEnd],
+                                         niter = options$predDraws,
+                                         full_pred = T,
+                                         model_function = .bstsModel,
+                                         mod = "trend")
+
+  fullModel <- .bstsModel(controlData$y[options$controlPredictionStart:options$controlPredictionEnd],
+                          niter = 1000,mod = "trend")
+
+  dataMatrix <- data.frame(mean = rowMeans(oneStepPredMatrix,na.rm=T),
+                           lowerCI = apply(oneStepPredMatrix,1,quantile,probs= 0.025,na.rm=T),
+                           higherCI= apply(oneStepPredMatrix,1,quantile,probs= 0.975,na.rm=T),
+                           actualData = fullModel$original.series,
+                           time = 1:length(fullModel$original.series),
+                           type = "real")
+
+
+  predictionsControl <- predict(fullModel,horizon = options$controlPredictionHorizon)
+
+  predActual <- rep(NA,options$controlPredictionHorizon)
+  if(length(controlData$y)> (options$controlPredictionEnd+options$controlPredictionHorizon))
+    predActual <- controlData$y[(options$controlPredictionEnd+1):(options$controlPredictionEnd+options$controlPredictionHorizon)]
+
+  predictionMatrix <- data.frame(mean = predictionsControl$mean,
+                                 lowerCI = predictionsControl$interval[1,1:options$controlPredictionHorizon],
+                                 higherCI = predictionsControl$interval[2,1:options$controlPredictionHorizon],
+                                 actualData = predActual,
+                                 time = (options$controlPredictionEnd+1):(options$controlPredictionEnd+options$controlPredictionHorizon),
+                                 type = "prediction")
+
+
+  combinedPredictions <- rbind(dataMatrix,predictionMatrix)
+  return(combinedPredictions)
+
+
+}
+
+.predanControlPredictionChart <- function(jaspResults,dataset,options,ready){
+  if(!ready || is.null(jaspResults[["predanResults"]][["predanControlPredictions"]])) return()
+  controlPredictionPlot <- createJaspPlot(title=gettext( "Control Predictions"))
+
+  controlPredictionPlot$dependOn(c("predanControlPredictions","controlPredictionCheck","controlPredictionHorizon","controlPredictionFocus"))
+
+  predanResults <- jaspResults[["predanResults"]]
+
+  combinedPredictions <- jaspResults[["predanResults"]][["predanControlPredictions"]]$object
+
+
+  controlData <- predanResults[["dataControl"]]
+
+  upperLimit <- predanResults[["upperLimit"]]
+  lowerLimit <- predanResults[["lowerLimit"]]
+  plotLimit <- predanResults[["plotLimit"]]
+
+  controlPredictionPlot <-  createJaspPlot(title= "Control Prediction", height = 320, width = 480)
+
+
+  p <- ggplot2::ggplot(combinedPredictions,ggplot2::aes(x = time,y=mean)) +
+    ggplot2::geom_ribbon(mapping=ggplot2::aes(ymin=lowerCI,ymax =higherCI ),
+                         alpha=0.5,fill ="blue") + ggplot2::xlab("Time") +
+    ggplot2::ylab("Distribution") +
+    ggplot2::geom_line(size=0.7) +
+    ggplot2::geom_point(ggplot2::aes(time,actualData),size=0.7) +
+    ggplot2::geom_vline(xintercept = options$controlPredictionEnd,linetype="dashed")
+
+  p <- p + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid)
+
+
+
+
+  p <- p + ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
+                                    plotLimit[[1]]))
+
+  p <- p + ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred") +
+    ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred")
+
+
+  if (options$controlPredictionFocus && length(controlData$y) <= (options$controlPredictionEnd +options$controlPredictionHorizon))
+    p <- p + ggplot2::coord_cartesian(xlim=c(1,length(dataControl$y)))
+
+
+  controlPredictionPlot$plotObject <- p
+
+  jaspResults[["predanMainContainer"]][["controlPredictionPlot"]] <- controlPredictionPlot
+  return()
+}
+
 

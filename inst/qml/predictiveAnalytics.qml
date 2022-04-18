@@ -234,7 +234,29 @@ Form
 
 	Section
 	{
-		title: qsTr("Control Prediction")
+		title: qsTr("Full Data Prediction")
+
+		CheckBox
+		{
+			name: "controlPredictionCheck"
+
+			label: "Control Prediction"
+
+			Group
+			{
+				title: "Model Period"
+				columns: 2
+				IntegerField{name: "controlPredictionStart";label: "Start"}
+				IntegerField{name: "controlPredictionEnd";label: "End"}
+			}
+
+			IntegerField{name: "controlPredictionHorizon";label: "Prediction Horizon"}
+			IntegerField{name: "predDraws"; label: "Niter"}
+			CheckBox{name:"controlPredictionFocus"; label: "Focus on all available data"}
+			
+			
+			
+		}
 	}
 	
 }
