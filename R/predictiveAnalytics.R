@@ -33,6 +33,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
     .predanComputeControlPrediction(jaspResults,dataset,options,ready)
     .predanControlPredictionChart(jaspResults,dataset,options,ready)
+    .predanForecastVerificationModelsHelper(jaspResults,dataset,options,ready)
+    .predanForecastVerificationModelsTable(jaspResults,dataset,options,ready)
     return()
 }
 
@@ -89,32 +91,36 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 ###### one step ahead predictions
 
-.bstsModel <- function(y_model,niter,mod="local"){
+.bstsModel <- function(y_model,niter,mod="bsts-local"){
   ss <- list()
-  if(mod=="local")
+  if(mod=="bsts-local")
     ss <- bsts::AddLocalLevel(state.specification = ss,y=y_model)
-  if(mod=="trend")
+  if(mod=="bsts-trend")
     ss <- bsts::AddLocalLinearTrend(state.specification = ss,y=y_model)
-  if(mod=="ar")
-    ss <- bsts::AddAr(ss,y)
+  if(mod=="bsts-ar")
+    ss <- bsts::AddAr(ss,y_model)
+  if(mod == "bsts-semi")
+    ss <- bsts::AddSemilocalLinearTrend(ss,y_model)
 
   mod <- bsts::bsts(formula = y_model,ss,niter = niter,seed = 1,ping = 0)
   return(mod)
 }
 
-.createPredictions <- function(y,niter,model_function=.bstsModel,full_pred=T,mod="local"){
+.createPredictions <- function(y,niter,model_function=.bstsModel,full_pred=T,mod="bsts-local",model_window = 0){
   one_step_matrix <- matrix(ncol = niter,nrow  = length(y))
 
   for (i in 2:length(y)) {
 
 
     y_train <- y[1:i]
+    if(model_window > 0)
+      y_train <- tail(y_train,model_window)
 
 
     model <- model_function(y_model  = y_train,niter = niter,mod=mod)
     print(i)
     if(full_pred)
-      one_step_pred <- predict(model,horizon = 1,burn = 0)
+      one_step_pred <- predict(model,horizon = 1,burn = 0,seed = 1)
     else
       one_step_pred <- predict(model,horizon = 1)
     one_step_matrix[i,1:niter] <- c(one_step_pred$distribution,
@@ -126,14 +132,34 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 }
 
 
+.dssScore <- function(y,dat){
+  m <- mean(dat,na.rm = T)
+  v <- mean(dat^2,na.rm = T) - m^2
+
+  return(sapply(y, function(s) (s - m)^2 / v + log(v)))
+}
 
 
 
+.crpsScore <- function(y,dat){
+  c_1n <- 1 / length(dat)
+  x <- sort(dat)
+  a <- seq.int(0.5 * c_1n, 1 - 0.5 * c_1n, length.out = length(dat))
+  f <- function(s) 2 * c_1n * sum(((s < x) - a) * (x - s),na.rm = T)
+  return(  sapply(y, f))
+}
 
 
-
-
-
+# https://stackoverflow.com/questions/31050556/parallel-version-of-sapply
+mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
+  FUN <- match.fun(FUN)
+  answer <- parallel::mclapply(X = X, FUN = FUN, ...)
+  if (USE.NAMES && is.character(X) && is.null(names(answer)))
+    names(answer) <- X
+  if (!isFALSE(simplify) && length(answer))
+    simplify2array(answer, higher = (simplify == "array"))
+  else answer
+}
 
 
 ##### dependencies
@@ -200,22 +226,22 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
       controlPeriod <- seq_len(nrow(dataControl))
 
     trimMean <- ifelse(options$trimmedMeanCheck,options$trimmedMeanPercent,0)
-    upperLimit <- mean(dataControl$y[controlPeriod],trim=trimMean) + sd(dataControl$y[controlPeriod],)*options$sigmaBound
-    lowerLimit <- mean(dataControl$y[controlPeriod],trim=trimMean) - sd(dataControl$y[controlPeriod])*options$sigmaBound
-    plotLimit <- c(mean(dataControl$y[controlPeriod],trim=trimMean) + 2*sd(dataControl$y[controlPeriod])*options$sigmaBound,
-                   mean(dataControl$y[controlPeriod],trim=trimMean) - 2*sd(dataControl$y[controlPeriod])*options$sigmaBound)
+    upperLimit <- mean(dataControl$y[controlPeriod],trim=trimMean,na.rm=T) + sd(dataControl$y[controlPeriod],na.rm=T)*options$sigmaBound
+    lowerLimit <- mean(dataControl$y[controlPeriod],trim=trimMean,na.rm=T) - sd(dataControl$y[controlPeriod],na.rm=T)*options$sigmaBound
+    plotLimit <- c(mean(dataControl$y[controlPeriod],trim=trimMean,na.rm=T) + 2*sd(dataControl$y[controlPeriod],na.rm=T)*options$sigmaBound,
+                   mean(dataControl$y[controlPeriod],trim=trimMean,na.rm=T) - 2*sd(dataControl$y[controlPeriod],na.rm=T)*options$sigmaBound)
   }
 
 
 
   dataControl$outBound <- ifelse(dataControl$y > upperLimit | dataControl$y < lowerLimit,T,F)
   dataControl$outBoundNum <- as.numeric(dataControl$outBound)
-  dataControl$outBoundArea <- "Inside"
-  dataControl$outBoundArea[dataControl$outBound] <- ifelse(dataControl$y[dataControl$outBound] > upperLimit,"Above","Below")
+  dataControl$outBoundArea[!is.na(dataControl$y)] <- "Inside"
+  dataControl$outBoundArea[!is.na(dataControl$outBound)] <- ifelse(dataControl$y[!is.na(dataControl$outBound)] > upperLimit,"Above","Below")
 
-  dataControl$distance[dataControl$outBound] <- ifelse(dataControl$y[dataControl$outBound] > upperLimit,
-                                                       dataControl$y[dataControl$outBound] - upperLimit,
-                                                       dataControl$y[dataControl$outBound] - lowerLimit)
+  dataControl$distance[!is.na(dataControl$outBound)] <- ifelse(dataControl$y[!is.na(dataControl$outBound)] > upperLimit,
+                                                       dataControl$y[!is.na(dataControl$outBound)] - upperLimit,
+                                                       dataControl$y[!is.na(dataControl$outBound)] - lowerLimit)
 
 
   results <- list(dataControl = dataControl,
@@ -746,5 +772,170 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   jaspResults[["predanMainContainer"]][["controlPredictionPlot"]] <- controlPredictionPlot
   return()
 }
+
+
+
+.predanForecastVerificationModelsHelper <- function(jaspResults,dataset,options,ready){
+  if(!ready || !options$forecastModelBstsLocalLevelCheck) return() ##any(!options$forecastModelBstsLocalLevelCheck || !options$forecastModelBstsLinearTrendCheck || !options$forecastModelBstsArCheck || !options$forecastModelBstsSemiLocalCheck)) return()
+
+  if (is.null(jaspResults[["predanResults"]][["predanForecastVerificationModels"]])){
+
+    predanForecastVerificationModels <- createJaspState()
+
+    predanForecastVerificationModels$dependOn(c("forecastModelBstsLocalLevelCheck","forecastModelBstsLinearTrendCheck","forecastModelBstsArCheck","forecastModelBstsSemiLocalCheck","forecastVerificationModelWindow","forecastVerificationDraws"))
+
+    predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+    controlData <- predanResults[[1]]
+
+    y <- controlData$y
+
+    checkedBstsModels <- unlist(options[c("forecastModelBstsLocalLevelCheck",
+                                          "forecastModelBstsLinearTrendCheck",
+                                          "forecastModelBstsArCheck",
+                                          "forecastModelBstsSemiLocalCheck")])
+
+    modelNames <- c("bsts-local","bsts-trend","bsts-ar","bsts-semi")[checkedBstsModels]
+
+    modelList <- list()
+
+
+
+
+    for (j in seq_along(modelNames)) {
+
+      startProgressbar(length(y)/7,gettextf(paste0("Running forecasting model ", j, " / ",length(modelNames)," :",modelNames[j])))
+
+      modelList[[modelNames[j]]] <- mcsapply(mc.cores = 7,X = 2:length(y),FUN = function(x){
+
+
+        y_train <- y[1:x]
+        if(options$forecastVerificationModelWindow > 0 ||options$forecastVerificationModelWindow > length(y))
+          y_train <- tail(y_train,options$forecastVerificationModelWindow)
+
+
+        model <- .bstsModel(y_model  = y_train,niter = options$forecastVerificationDraws,mod=modelNames[j])
+        #if(full_pred)
+        one_step_pred <- predict(model,horizon = 1)
+
+        one_step_matrix <- one_step_pred$distribution
+        #else
+        #  one_step_pred <- predict(model,horizon = 1)
+        one_step_matrix <- c(one_step_pred$distribution,
+                             rep(NA,options$forecastVerificationDraws - length(one_step_pred$distribution)))
+
+        progressbarTick()
+
+
+        return(one_step_matrix)
+
+
+      }
+      )
+
+
+      if(!is.matrix(modelList[[modelNames[j]]] ))
+                   stop(gettext(paste0("Models didn't work. Instead of prediction matrix we got:",modelList[1])))
+
+
+
+    }
+
+
+
+
+
+
+
+    #if(Sys.info()[['sysname']] == "Linux"){
+    #  modelList <- parallel::mclapply(X = seq_along(modelNames),
+    #                                  FUN = function(x)
+    #                                    .createPredictions(y = y,niter = 500,
+    #                                                       model_function = .bstsModel,
+    #                                                       full_pred = T,
+    #                                                       mod =  modelNames[x],
+    #                                                       model_window = options$forecastVerificationModelWindow)
+    #  )
+    #} else {
+    #  modelList <- lapply(X = seq_along(modelNames),
+    #                      FUN = function(x)
+    #                        .createPredictions(y = y,niter = 500,
+    #                                           model_function = .bstsModel,
+    #                                           full_pred = T,
+    #                                           mod =  modelNames[x],
+    #                                           model_window = options$forecastVerificationModelWindow)
+    #  )
+    #}
+
+    predanForecastVerificationModels$object <- modelList
+
+
+    jaspResults[["predanResults"]][["predanForecastVerificationModels"]] <- predanForecastVerificationModels
+
+
+    return()
+
+  }
+}
+
+.predanForecastVerificationModelsTable <- function(jaspResults,dataset,options,ready){
+
+  if(!ready || is.null(jaspResults[["predanResults"]][["predanForecastVerificationModels"]])) return()
+
+  forecastMetricTable <- createJaspTable(title = "Forecast Verification Metrics Table")
+
+  forecastMetricTable$dependOn(c("forecastMetricsLog","forecastMetricsCRPS","forecastMetricsDSS"))
+  modelListForecast <-  jaspResults[["predanResults"]][["predanForecastVerificationModels"]]$object
+
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  controlData <- predanResults[[1]]
+
+  y <- controlData$y
+
+
+
+  forecastMetricTable$addColumnInfo(name= "Model", title = "", type = "string")
+
+  #if(options$forecastMetricsLog) forecastMetricTable$addColumnInfo(name = "Log", title= "Log Score", type = "number")
+  if(options$forecastMetricsCRPS) forecastMetricTable$addColumnInfo(name = "CRPS", title= "CRPS", type = "number")
+  if(options$forecastMetricsDSS) forecastMetricTable$addColumnInfo(name = "DSS", title= "DSS", type = "number")
+
+
+  .predanForecastVerificationModelsTableFill(y,forecastMetricTable,modelListForecast,options)
+
+
+  jaspResults[["predanMainContainer"]][["forecastMetricTable"]] <- forecastMetricTable
+
+
+  return()
+
+
+}
+
+.predanForecastVerificationModelsTableFill <- function(y,forecastMetricTable,modelListForecast,options){
+
+  scoringResults <- list()
+
+  #if(options$forecastMetricsLog) scoringResults[["Log"]] <- sapply(modelListForecast,function(x) scoringutils::logs(y[2:length(y)],t(x)))
+
+  if(options$forecastMetricsCRPS) scoringResults[["CRPS"]] <- sapply(modelListForecast,function(x) .crpsScore(y[2:length(y)],x))
+
+  if(options$forecastMetricsDSS) scoringResults[["DSS"]] <- sapply(modelListForecast,function(x) .dssScore(y[2:length(y)],x))
+
+
+  scoringResultsMean <- as.data.frame(lapply(scoringResults,colMeans,na.rm=T))
+
+  #stop(gettext(paste0(scoringResultsMean)))
+
+
+  forecastMetricTable[["Model"]] <- rownames(scoringResultsMean)
+
+  if(options$forecastMetricsDSS) forecastMetricTable[["DSS"]] <- scoringResultsMean$DSS
+
+  if(options$forecastMetricsCRPS) forecastMetricTable[["CRPS"]] <- scoringResultsMean$CRPS
+
+  return()
+
+}
+
 
 

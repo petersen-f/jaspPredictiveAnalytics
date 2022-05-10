@@ -13,6 +13,10 @@ Imports:
   jaspBase,
   jaspGraphs,
   bsts,
+  parallel,
+  pbapply,
+  scoringRules,
+  scoringutils,
   Boom
 Suggests:
   testthat

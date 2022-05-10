@@ -258,5 +258,44 @@ Form
 			
 		}
 	}
+
+	Section
+
+	{
+		Group
+		{
+			Layout.columnSpan: 1
+	 		DoubleField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction"}
+			DoubleField{name: "forecastVerificationModelWindow";label: "Model Window";defaultValue:100}
+
+		}	
+		Group
+		{	 		
+			DoubleField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:100}
+
+		}
+		title: qsTr("Forecast verification")
+
+		Group
+		{	
+			title: qsTr("Model Selection")
+			CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - Local Level Model"}
+			CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - Linear Trend Model"}
+			CheckBox{name:"forecastModelBstsArCheck";label: "bsts - Autoregressive Model"}
+			CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - Semi Local Trend Model"}
+		}
+
+		Group
+		{
+			title: qsTr("Probalistic Forecast Verification Metrics")
+
+			//CheckBox{name:"forecastMetricsLog";label: "Logarithmic score";checked:true}
+			CheckBox{name:"forecastMetricsCRPS";label: "Continuous ranked probability score";checked:true}
+			CheckBox{name:"forecastMetricsDSS";label: "Dawid-Sebastiani score";checked:true}
+			//CheckBox{name:"forecastMetricsRSME";label: "Dawid-Sebastiani score"}
+
+
+		}
+	}
 	
 }
