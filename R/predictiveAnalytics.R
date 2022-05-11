@@ -91,6 +91,29 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 ###### one step ahead predictions
 
+# baseline model with running Variance and Mean
+
+.baslinePredictionModel <- function(y,window,niter,runningMean=F,k=1){
+
+  sdRunning <- c()
+
+  baselineDraws <- matrix(NA,nrow = niter,ncol = length(y))
+  for (i in 2:(length(y)-k)) {
+    yTrain <- y[1:i]
+    sdRunning[i] <- sd(tail(yTrain,n = window),na.rm = T)
+
+    if(runningMean)
+      yPrevious <- mean(tail(yTrain,n = window),na.rm = T)
+    else
+      yPrevious <- y[i]
+
+    baselineDraws[,i+k] <- rnorm(niter,mean=yPrevious,sd = sdRunning[i] )
+  }
+  return(baselineDraws)
+}
+
+# bsts models
+
 .bstsModel <- function(y_model,niter,mod="bsts-local"){
   ss <- list()
   if(mod=="bsts-local")
@@ -789,6 +812,9 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
     y <- controlData$y
 
+    if(options$forecastVerificationModelHistory >0)
+      y <- tail(y,options$forecastVerificationModelHistory)
+
     checkedBstsModels <- unlist(options[c("forecastModelBstsLocalLevelCheck",
                                           "forecastModelBstsLinearTrendCheck",
                                           "forecastModelBstsArCheck",
@@ -798,6 +824,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
     modelList <- list()
 
+    k <- options$forecastVerificationPredictionSteps
 
 
 
@@ -805,40 +832,47 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
       startProgressbar(length(y)/7,gettextf(paste0("Running forecasting model ", j, " / ",length(modelNames)," :",modelNames[j])))
 
-      modelList[[modelNames[j]]] <- mcsapply(mc.cores = 7,X = 2:length(y),FUN = function(x){
+      modelList[[modelNames[j]]] <- mcsapply(mc.cores = 7,X = 2:(length(y)-k),FUN = function(x){
 
 
         y_train <- y[1:x]
-        if(options$forecastVerificationModelWindow > 0 ||options$forecastVerificationModelWindow > length(y))
+        if(options$forecastVerificationModelWindow > 0)
           y_train <- tail(y_train,options$forecastVerificationModelWindow)
 
 
         model <- .bstsModel(y_model  = y_train,niter = options$forecastVerificationDraws,mod=modelNames[j])
         #if(full_pred)
-        one_step_pred <- predict(model,horizon = 1)
-
-        one_step_matrix <- one_step_pred$distribution
+        one_step_pred <- predict(model,horizon = k,burn = 0,seed = 1)
         #else
         #  one_step_pred <- predict(model,horizon = 1)
-        one_step_matrix <- c(one_step_pred$distribution,
-                             rep(NA,options$forecastVerificationDraws - length(one_step_pred$distribution)))
+        one_step_matrix <- one_step_pred$distribution[,k]
+        #rep(NA,options$forecastVerificationDraws -length(one_step_pred$distribution)))
 
         progressbarTick()
-
-
         return(one_step_matrix)
-
-
       }
+
+
+
       )
-
-
       if(!is.matrix(modelList[[modelNames[j]]] ))
-                   stop(gettext(paste0("Models didn't work. Instead of prediction matrix we got:",modelList[1])))
+        stop(gettext(paste0("Models didn't work. Instead of prediction matrix we got:",modelList[1])))
 
+      modelList[[modelNames[j]]]  <- cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
 
 
     }
+
+
+
+
+    # baselinemodels
+
+    if(options$forecastModelBaselineRunVar)
+      modelList$baselineRunVar <- .baslinePredictionModel(y = y, window = 20,niter = options$forecastVerificationDraws,k=k)
+
+    if(options$forecastModelBaselineRunVarMean)
+      modelList$baselineRunVarMean <- .baslinePredictionModel(y = y, window = 20,niter = options$forecastVerificationDraws,runningMean = T,k = k)
 
 
 
@@ -891,6 +925,9 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
   y <- controlData$y
 
+  if(options$forecastVerificationModelHistory >0)
+    y <- tail(y,options$forecastVerificationModelHistory)
+
 
 
   forecastMetricTable$addColumnInfo(name= "Model", title = "", type = "string")
@@ -898,6 +935,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   #if(options$forecastMetricsLog) forecastMetricTable$addColumnInfo(name = "Log", title= "Log Score", type = "number")
   if(options$forecastMetricsCRPS) forecastMetricTable$addColumnInfo(name = "CRPS", title= "CRPS", type = "number")
   if(options$forecastMetricsDSS) forecastMetricTable$addColumnInfo(name = "DSS", title= "DSS", type = "number")
+  ##if(options$forecastMetricsRSME) forecastMetricTable$addColumnInfo(name = "RMSE", title= "RMSE", type = "number")
 
 
   .predanForecastVerificationModelsTableFill(y,forecastMetricTable,modelListForecast,options)
@@ -915,15 +953,22 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
   scoringResults <- list()
 
+
+  k <- options$forecastVerificationPredictionSteps
+
   #if(options$forecastMetricsLog) scoringResults[["Log"]] <- sapply(modelListForecast,function(x) scoringutils::logs(y[2:length(y)],t(x)))
 
-  if(options$forecastMetricsCRPS) scoringResults[["CRPS"]] <- sapply(modelListForecast,function(x) .crpsScore(y[2:length(y)],x))
+  if(options$forecastMetricsCRPS) scoringResults[["CRPS"]] <- sapply(modelListForecast,function(x) .crpsScore(as.numeric(y[-c(1:(k+1))]),t(x[,-c(1:(k+1))])))
 
-  if(options$forecastMetricsDSS) scoringResults[["DSS"]] <- sapply(modelListForecast,function(x) .dssScore(y[2:length(y)],x))
+  if(options$forecastMetricsDSS) scoringResults[["DSS"]] <- sapply(modelListForecast,function(x) .dssScore(as.numeric(y[-c(1:(k+1))]),t(x[,-c(1:(k+1))])))
+
+  #if(options$forecastMetricsRSME) scoringResults[["RSME"]] <-
 
 
   scoringResultsMean <- as.data.frame(lapply(scoringResults,colMeans,na.rm=T))
 
+
+  ##if(options$forecastMetricsRSME) scoringResultsMean$RSME  <- sapply(modelListForecast,function(x) sqrt(sum((y[2:length(y)] - colMeans(x,na.rm = T))^2,na.rm=T)/(length(y)-1)))
   #stop(gettext(paste0(scoringResultsMean)))
 
 
@@ -933,6 +978,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
   if(options$forecastMetricsCRPS) forecastMetricTable[["CRPS"]] <- scoringResultsMean$CRPS
 
+  #if(options$forecastMetricsRSME) forecastMetricTable[["RSME"]] <- scoringResultsMean$RSME
   return()
 
 }

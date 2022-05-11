@@ -265,13 +265,16 @@ Form
 		Group
 		{
 			Layout.columnSpan: 1
-	 		DoubleField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction"}
-			DoubleField{name: "forecastVerificationModelWindow";label: "Model Window";defaultValue:100}
+	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
+			IntegerField{name: "forecastVerificationModelWindow";label: "Model Window";defaultValue:100;min: 0}
 
 		}	
 		Group
 		{	 		
-			DoubleField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:100}
+			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:100;min: 10}
+
+			IntegerField{name: "forecastVerificationModelHistory";label: "Model History";defaultValue:200;min: 0}
+
 
 		}
 		title: qsTr("Forecast verification")
@@ -279,10 +282,14 @@ Form
 		Group
 		{	
 			title: qsTr("Model Selection")
+			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - Running Variance"}
+			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - Running Variance & Mean"}
 			CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - Local Level Model"}
 			CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - Linear Trend Model"}
 			CheckBox{name:"forecastModelBstsArCheck";label: "bsts - Autoregressive Model"}
 			CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - Semi Local Trend Model"}
+			
+
 		}
 
 		Group
@@ -292,7 +299,7 @@ Form
 			//CheckBox{name:"forecastMetricsLog";label: "Logarithmic score";checked:true}
 			CheckBox{name:"forecastMetricsCRPS";label: "Continuous ranked probability score";checked:true}
 			CheckBox{name:"forecastMetricsDSS";label: "Dawid-Sebastiani score";checked:true}
-			//CheckBox{name:"forecastMetricsRSME";label: "Dawid-Sebastiani score"}
+			//CheckBox{name:"forecastMetricsRSME";label: "Root Mean Squared Error"}
 
 
 		}
