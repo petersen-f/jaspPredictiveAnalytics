@@ -18,7 +18,7 @@ Form
 	Section
 	{
 		title: qsTr("Time Series Descriptives")
-		
+
 		Group
 		{
 			title: qsTr("Error Bound Selection Method")
@@ -40,8 +40,8 @@ Form
 				RadioButtonGroup
 				{
 					name: "manualBoundMethod"
-					RadioButton 
-					{ 
+					RadioButton
+					{
 						value: "manualBoundUniform"
 						checked: true
 						childrenOnSameRow: true
@@ -51,13 +51,13 @@ Form
 							DoubleField{name: "manualBoundMean";label: "Mean"; negativeValues: true}
 							DoubleField{name: "manualBoundErrorBound";label: "+/-"}
 						}
-						
-						
+
+
 
 
 					}
-					RadioButton 
-					{ 
+					RadioButton
+					{
 						value: "manualBoundCustom"
 						childrenOnSameRow: true
 						Group
@@ -66,10 +66,10 @@ Form
 							DoubleField{name: "manualUpperBound";label: "Upper bound"; negativeValues: true}
 							DoubleField{name: "manualLowerBound";label: "Lower bound"; negativeValues: true}
 						}
-						
+
 					}
 				}
-				
+
 				//IntegerField{name: "controlMean"; label: qsTr("Control Mean"); defaultValue: Null; negativeValues: true}
 				//IntegerField{name: "controlError"; label: qsTr("Control Error"); defaultValue: 0; negativeValues: false}
 			}
@@ -97,17 +97,17 @@ Form
 							IntegerField{name:"controlPeriodEnd"; label: qsTr("End"); defaultValue: 0}
 
 						}
-						
+
 					}
 
-			
-			}
-			
-				
 
-				
-			
-			
+			}
+
+
+
+
+
+
 		}
 		Group
 		{
@@ -148,12 +148,12 @@ Form
 							IntegerField{name:"zoomPeriodEnd"; label: qsTr("End"); defaultValue: 0}
 
 						}
-						
+
 					}
 			}
 		}
 
-		
+
 	}
 	Section
 	{
@@ -202,10 +202,10 @@ Form
 		title: qsTr("Binary Control Analysis")
 		//Group
 		//{
-			CheckBox 
+			CheckBox
 			{
 				name: "binaryControlChartCheck"
-				
+
 				label: "Show binary control chart"
 
 				DropDown
@@ -253,9 +253,9 @@ Form
 			IntegerField{name: "controlPredictionHorizon";label: "Prediction Horizon"}
 			IntegerField{name: "predDraws"; label: "Niter"}
 			CheckBox{name:"controlPredictionFocus"; label: "Focus on all available data"}
-			
-			
-			
+
+
+
 		}
 	}
 
@@ -268,9 +268,9 @@ Form
 	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
 			IntegerField{name: "forecastVerificationModelWindow";label: "Model Window";defaultValue:100;min: 0}
 
-		}	
+		}
 		Group
-		{	 		
+		{
 			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:100;min: 10}
 
 			IntegerField{name: "forecastVerificationModelHistory";label: "Model History";defaultValue:200;min: 0}
@@ -280,7 +280,7 @@ Form
 		title: qsTr("Forecast verification")
 
 		Group
-		{	
+		{
 			title: qsTr("Model Selection")
 			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - Running Variance"}
 			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - Running Variance & Mean"}
@@ -288,7 +288,7 @@ Form
 			CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - Linear Trend Model"}
 			CheckBox{name:"forecastModelBstsArCheck";label: "bsts - Autoregressive Model"}
 			CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - Semi Local Trend Model"}
-			
+
 
 		}
 
@@ -304,5 +304,21 @@ Form
 
 		}
 	}
-	
+	Section
+	{
+		title: qsTr("Bayesian Model Averaging")
+
+		CheckBox
+		{
+			name: "checkBMA"
+			label: "Perform BMA"
+
+		}
+
+		CheckBox{name: "checkBMAmodelWeights"; label: "Show model weights"}
+
+		CheckBox{name: "checkBMATrainingPlot"; label: "Show averaged predictions"}
+
+	}
+
 }

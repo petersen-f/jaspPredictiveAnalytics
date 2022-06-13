@@ -35,9 +35,22 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanControlPredictionChart(jaspResults,dataset,options,ready)
     .predanForecastVerificationModelsHelper(jaspResults,dataset,options,ready)
     .predanForecastVerificationModelsTable(jaspResults,dataset,options,ready)
+
+    .predanBMAHelperResults(jaspResults,dataset,options,ready)
+    .predanBMAWeightsTable(jaspResults,dataset,options,ready)
+    .predanBMAPlots(jaspResults,dataset,options,ready)
+
     return()
 }
 
+.extractQuantiles <-function(state){
+  data.frame(mean = colMeans(state,na.rm = T),
+
+                                                lowerCI = apply(state,2,quantile,probs= 0.025,na.rm = T),
+                                                higherCI= apply(state,2,quantile,probs= 0.975,na.rm = T),
+                                                time = 1:ncol(state)
+)
+}
 .predanReadData <- function(options,ready) {
   if(!ready) return()
   numericVariable <- c(options$dependent)
@@ -115,6 +128,9 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 # bsts models
 
 .bstsModel <- function(y_model,niter,mod="bsts-local"){
+
+  if(sd(y_model) == 0)
+    y_model <- y_model + rnorm(length(y_model),0,0.000001)
   ss <- list()
   if(mod=="bsts-local")
     ss <- bsts::AddLocalLevel(state.specification = ss,y=y_model)
@@ -185,6 +201,86 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 }
 
 
+###esemble functions
+
+.computeBMAHelper <- function(y, modelList, trainingPeriod,minimiseCRPS){
+  predictionMeans <- as.data.frame(sapply(modelList,rowMeans))
+  dates <- as.character(seq.Date(as.Date("2022-05-15"),by="days",length.out =  nrow(predictionMeans)))
+
+  dates <- paste0(gsub("-","",dates),"00")
+  ensembleDataFrame <- ensembleBMA::ensembleData(forecasts = predictionMeans,
+                                                 observations = y,
+                                                 dates = dates,
+                                                 forecastHour = 24,initializationTime = 0)
+
+  fitBMAObject <- ensembleBMA::ensembleBMAnormal(ensembleData = ensembleDataFrame,minCRPS = minimiseCRPS,
+                                                 trainingDays  = trainingPeriod)
+
+  return(list(fitBMAObject= fitBMAObject,ensembleDataFrame = ensembleDataFrame))
+
+}
+
+.bmaFuturePrediction <- function(fitBMAObject, modelListFuturePredictions,weightWindow){
+  modelWeights <- rowMeans(tail(fitBMAObject$weights,weightWindow))
+  aWeights <- colMeans(tail(t(fitBMAObject$biasCoefs[1,,]),weightWindow))
+  bWeights <- colMeans(tail(t(fitBMAObject$biasCoefs[2,,]),weightWindow))
+
+  #modelMatrixFuturePredictions <- array(as.numeric(unlist(modelListFuturePredictions)), dim=c(dim(modelListFuturePredictions[[1]]), length(modelListFuturePredictions)))
+  biasCorrectedPredictionList<- lapply(X=1:length(modelListFuturePredictions),FUN = function(x) aWeights[x]+bWeights[x]*modelListFuturePredictions[[x]])
+  names(biasCorrectedPredictionList) <- names(modelListFuturePredictions)
+  #biasCorrectedPrediction <- apply(X=modelMatrixFuturePredictions,MARGIN =c(1,3) ,FUN = function(x) aWeights+bWeights*x)
+  weightedPredictions <- lapply(X=1:length(modelListFuturePredictions), FUN = function(x) biasCorrectedPredictionList[[x]] * modelWeights[x])
+
+  # no bias correction
+  #weightedPredictions <- lapply(X=1:length(modelListFuturePredictions), FUN = function(x) modelListFuturePredictions[[x]] * modelWeights[x])
+
+  #meansPredsWeight <- data.frame(trend = colMeans(biasCorrectedPredictionList[[1]]),
+  #                               local = colMeans(biasCorrectedPredictionList[[2]]),
+  #                               weightedPredictions = rowSums(sapply(weightedPredictions,colMeans)))
+
+  # sumPred <- biasCorrectedPredictionList %>% reshape2::melt() %>% mutate(L1 =factor(L1,labels  = names(modelListFuturePredictions))) %>%
+  #   rename(#model = Var1,
+  #          draw = Var1,
+  #          time = Var2,
+  #          model = L1) %>%
+  #   bind_rows(reshape2::melt(Reduce("+",weightedPredictions)) %>% mutate(model="BMA") %>% rename(draw=Var1,time=Var2)) %>%
+  #   group_by(model,time) %>% summarise(mean= mean(value),
+  #                                      lowerCI = quantile(value,0.025),
+  #                                      higherCI = quantile(value,0.975))
+  #
+  #sumPred2 <- lapply(X =1:3, function(x) data.frame(draw=c(row(biasCorrectedPredictionList[[x]])),
+  #                                                  time=c(col(biasCorrectedPredictionList[[x]])),
+  #                                                  state=c(biasCorrectedPredictionList[[x]]),
+  #                                                  name = names(biasCorrectedPredictionList)[x]))
+
+  sumPred2 <- lapply(biasCorrectedPredictionList, .extractQuantiles)
+  sumPred2 <- lapply(X=1:3, function(x) cbind(sumPred2[[x]],model= names(biasCorrectedPredictionList)[x]))
+
+
+  mergedPred <- .extractQuantiles(Reduce("+",weightedPredictions))
+  mergedPred$model = "BMA"
+  #sumPredBMA <- data.frame(draw=c(row(mergedPred)),time=c(col(mergedPred)), state=c(mergedPred),model = "BMA")
+  #names(sumPred2) <- names(biasCorrectedPredictionList)
+  sumPred2 <- do.call("rbind", sumPred2)
+  sumPred2 <- rbind(sumPred2,mergedPred)
+
+  p <- sumPred2 %>% ggplot(aes(time,mean) )+ geom_line(aes(col=model)) +
+    geom_ribbon(data=sumPred2 %>% filter(model=="BMA"),aes(ymin=lowerCI,ymax=higherCI),fill="blue",alpha=0.2) + theme_bw()
+
+  return(p)
+}
+
+
+
+
+
+
+
+
+
+
+
+
 ##### dependencies
 .boundDependencies <- function(){
   return(c("errorBoundMethodDrop",
@@ -200,6 +296,21 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
            "trimmedMeanCheck",
            "trimmedMeanPercent"))
 }
+
+
+
+.forecastVeriDependencies <- function(){
+  return(c("forecastModelBstsLocalLevelCheck",
+             "forecastModelBstsLinearTrendCheck",
+             "forecastModelBstsArCheck",
+             "forecastModelBstsSemiLocalCheck",
+             "forecastVerificationModelWindow",
+             "forecastVerificationDraws"))
+}
+
+
+
+
 
 .predanComputeResults <- function(jaspResults, dataset, options,ready) {
 
@@ -805,7 +916,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
     predanForecastVerificationModels <- createJaspState()
 
-    predanForecastVerificationModels$dependOn(c("forecastModelBstsLocalLevelCheck","forecastModelBstsLinearTrendCheck","forecastModelBstsArCheck","forecastModelBstsSemiLocalCheck","forecastVerificationModelWindow","forecastVerificationDraws"))
+    predanForecastVerificationModels$dependOn(.forecastVeriDependencies())
 
     predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
     controlData <- predanResults[[1]]
@@ -832,7 +943,10 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
       startProgressbar(length(y)/7,gettextf(paste0("Running forecasting model ", j, " / ",length(modelNames)," :",modelNames[j])))
 
-      modelList[[modelNames[j]]] <- mcsapply(mc.cores = 7,X = 2:(length(y)-k),FUN = function(x){
+      mc.core <- 7
+      if(Sys.info()[['sysname']] == "Windows")
+        mc.core <- 1
+      modelList[[modelNames[j]]] <- mcsapply(mc.cores = mc.core,X = 2:(length(y)-k),FUN = function(x){
 
 
         y_train <- y[1:x]
@@ -938,7 +1052,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   ##if(options$forecastMetricsRSME) forecastMetricTable$addColumnInfo(name = "RMSE", title= "RMSE", type = "number")
 
 
-  .predanForecastVerificationModelsTableFill(y,forecastMetricTable,modelListForecast,options)
+  .predanForecastVerificationModelsTableFill(y,jaspResults,forecastMetricTable,modelListForecast,options)
 
 
   jaspResults[["predanMainContainer"]][["forecastMetricTable"]] <- forecastMetricTable
@@ -949,20 +1063,41 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
 }
 
-.predanForecastVerificationModelsTableFill <- function(y,forecastMetricTable,modelListForecast,options){
+.predanForecastVerificationModelsTableFill <- function(y,jaspResults,forecastMetricTable,modelListForecast,options){
 
   scoringResults <- list()
 
 
   k <- options$forecastVerificationPredictionSteps
 
+  indexMetrics <- -c(1:(options$forecastVerificationModelWindow+2))
+
   #if(options$forecastMetricsLog) scoringResults[["Log"]] <- sapply(modelListForecast,function(x) scoringutils::logs(y[2:length(y)],t(x)))
 
-  if(options$forecastMetricsCRPS) scoringResults[["CRPS"]] <- sapply(modelListForecast,function(x) .crpsScore(as.numeric(y[-c(1:(k+1))]),t(x[,-c(1:(k+1))])))
+  if(options$forecastMetricsCRPS) scoringResults[["CRPS"]] <- sapply(modelListForecast,function(x) .crpsScore(as.numeric(y[indexMetrics]),t(x[,indexMetrics])))
 
-  if(options$forecastMetricsDSS) scoringResults[["DSS"]] <- sapply(modelListForecast,function(x) .dssScore(as.numeric(y[-c(1:(k+1))]),t(x[,-c(1:(k+1))])))
-
+  if(options$forecastMetricsDSS) scoringResults[["DSS"]] <- sapply(modelListForecast,function(x) .dssScore(as.numeric(y[indexMetrics]),t(x[,indexMetrics])))
   #if(options$forecastMetricsRSME) scoringResults[["RSME"]] <-
+
+  if(!is.null(jaspResults[["predanResults"]][["predanBMAResults"]])){
+    fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+    crpsBMA <- ensembleBMA::crps(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame)
+
+    if(nrow(scoringResults$CRPS) !=nrow(crpsBMA))
+      stop(paste0("nrow of scoring is: ",nrow(scoringResults$CRPS), "other is" ,nrow(crpsBMA)))
+    scoringResults$CRPS  <- cbind(scoringResults$CRPS,crpsBMA)
+    scoringResults$DSS  <- cbind(scoringResults$DSS,NA,NA)
+    #scoringResults[["CRPS"]][,"BMA"] <-crpsBMA[[2]]
+    #forecastMetricTable$addRows(list(Model = "ensemble",CRPS = crpsBMA[[1]],DSS = NA))
+    #forecastMetricTable$addRows(list(Model = "BMA",CRPS = crpsBMA[[2]],DSS = NA))
+
+  }
+
+
+
+
+
+
 
 
   scoringResultsMean <- as.data.frame(lapply(scoringResults,colMeans,na.rm=T))
@@ -979,9 +1114,129 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   if(options$forecastMetricsCRPS) forecastMetricTable[["CRPS"]] <- scoringResultsMean$CRPS
 
   #if(options$forecastMetricsRSME) forecastMetricTable[["RSME"]] <- scoringResultsMean$RSME
+
+
+
+
+
+
+
+
+
+
+
+
+
+  return(scoringResults)
+
+}
+
+
+.predanBMAHelperResults <- function(jaspResults,dataset,options,ready) {
+  if(!ready | !options$checkBMA) return()
+  if(is.null(jaspResults[["predanResults"]][["predanBMAResults"]])){
+    predanBMAResults <- createJaspState()
+    predanBMAResults$dependOn(.forecastVeriDependencies())
+    predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+    controlData <- predanResults[[1]]
+    yModel <- controlData$y
+
+    if(options$forecastVerificationModelHistory >0)
+      yModel <- tail(yModel,options$forecastVerificationModelHistory)
+
+    modelListForecast <-  jaspResults[["predanResults"]][["predanForecastVerificationModels"]]$object
+
+    modelListForecast <- lapply(modelListForecast, t)
+
+    fitBMAList <- .computeBMAHelper(y = yModel,modelList = modelListForecast,trainingPeriod = options$forecastVerificationModelWindow,minimiseCRPS = T)
+
+    predanBMAResults$object <- fitBMAList
+
+
+
+
+    jaspResults[["predanResults"]][["predanBMAResults"]] <- predanBMAResults
+    # add to table
+    .predanForecastVerificationModelsTable(jaspResults,dataset,options,ready)
+
+
+  }
+  return()
+}
+
+.predanBMAWeightsTable <- function(jaspResults,dataset,options,ready){
+  if(!ready || !options$checkBMAmodelWeights) return()
+
+  if(is.null(jaspResults[["predanMainContainer"]][["BMAWeightsTable"]] )){
+    BMAWeightsTable <- createJaspTable(title = "Posterior Model Weights")
+
+
+    fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+
+    fitBMAObject <- fitBMAList$fitBMAObject
+
+    if(!is.array(fitBMAObject$weights))
+      stop(gettext(paste0("BMA unsuccessfull. BMA weights look like: ",fitBMAObject$weights)))
+
+    weightsModel <- rowMeans(fitBMAObject$weights)
+
+    BMAWeightsTable$addColumnInfo(name= "Model", title = "Model", type = "string")
+
+    BMAWeightsTable$addColumnInfo(name= "Weight", title = "Weight", type = "number")
+
+    BMAWeightsTable[["Model"]] <- names(weightsModel)
+    BMAWeightsTable[["Weight"]] <- weightsModel
+
+
+    jaspResults[["predanMainContainer"]][["BMAWeightsTable"]] <- BMAWeightsTable
+
+
+  }
   return()
 
 }
 
 
+.predanBMAPlots <- function(jaspResults,dataset,options,ready){
+  if(!ready) return()
+
+  fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+
+  fitBMAObject <- fitBMAList$fitBMAObject
+  fitBMAData <- fitBMAList$ensembleDataFrame
+
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  controlData <- predanResults[[1]]
+  yModel <- controlData$y
+
+  #if(options$forecastVerificationModelHistory >0)
+  #  yModel <- tail(yModel,options$forecastVerificationModelHistory)
+
+
+
+  if(options$checkBMATrainingPlot)
+    .predanBMATrainingPlot(jaspResults,fitBMAObject,fitBMAData,yModel)
+}
+
+
+.predanBMATrainingPlot <- function(jaspResults,fitBMAObject,fitBMAData,yModel){
+
+  predanBMATrainingPlot <- createJaspPlot("Model Averaged Prediction")
+
+  quantilesBMA <- as.data.frame(ensembleBMA::quantileForecast(fit =fitBMAObject,ensembleData = fitBMAData,quantiles = c(0.025,0.5,0.975) ),)
+  colnames(quantilesBMA) <- c("lowerCI","median","higherCI")
+  trainingIndex <- as.numeric(rownames(quantilesBMA))
+  quantilesBMA$actual = yModel[trainingIndex]
+  quantilesBMA$time <- trainingIndex
+  p <- ggplot2::ggplot(data = quantilesBMA,mapping =  ggplot2::aes(x=time,y=median)) +
+    ggplot2::geom_line(col="red") + ggplot2::geom_line(ggplot2::aes(y=lowerCI))  +
+    ggplot2::geom_line(ggplot2::aes(y=higherCI)) + ggplot2::geom_point(ggplot2::aes(y=actual)) + ggplot2::theme_classic()
+
+  predanBMATrainingPlot$plotObject <- p
+
+  jaspResults[["predanResults"]][["predanBMATrainingPlot"]] <- predanBMATrainingPlot
+
+  return()
+
+}
 
