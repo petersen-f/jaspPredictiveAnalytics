@@ -14,7 +14,8 @@ Imports:
   jaspGraphs,
   bsts,
   parallel,
-  pbapply,
+  future,
+  future.apply,
   scoringRules,
   scoringutils,
   Boom

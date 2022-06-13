@@ -145,29 +145,67 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   return(mod)
 }
 
-.createPredictions <- function(y,niter,model_function=.bstsModel,full_pred=T,mod="bsts-local",model_window = 0){
-  one_step_matrix <- matrix(ncol = niter,nrow  = length(y))
+.createPredictions <- function(y, niter, parallel,model_function = .bstsModel,full_pred = T, mod = "bsts-local", model_window = 0  , k = 1) {
+  if (parallel == FALSE) {
+    one_step_matrix <- matrix(ncol = niter, nrow = length(y))
 
-  for (i in 2:length(y)) {
+    for (i in 2:(length(y) - k)) {
+      y_train <- y[1:i]
+      if (model_window > 0) {
+        y_train <- tail(y_train, model_window)
+      }
 
 
-    y_train <- y[1:i]
-    if(model_window > 0)
-      y_train <- tail(y_train,model_window)
+      model <- .bstsModel(y_model = y_train, niter = niter, mod = mod)
+      print(i)
+      if (full_pred) {
+        one_step_pred <- predict(model, horizon = 1, burn = 0, seed = 1)
+      } else {
+        one_step_pred <- predict(model, horizon = 1)
+      }
+      one_step_matrix[(i + 1), 1:niter] <- c(
+        one_step_pred$distribution,
+        rep(NA, niter - length(one_step_pred$distribution))
+      )
+    }
+  } else if(Sys.info()[['sysname']] != "Windows"){ # par for linux based systems
+    one_step_pred <- mcsapply(mc.cores = 7, X = 2:(length(y) - k), FUN = function(x) {
+      y_train <- y[1:x]
+      if (model_window > 0) {
+        y_train <- tail(y_train, model_window)
+      }
 
 
-    model <- model_function(y_model  = y_train,niter = niter,mod=mod)
-    print(i)
-    if(full_pred)
-      one_step_pred <- predict(model,horizon = 1,burn = 0,seed = 1)
-    else
-      one_step_pred <- predict(model,horizon = 1)
-    one_step_matrix[i,1:niter] <- c(one_step_pred$distribution,
-                                    rep(NA,niter-length(one_step_pred$distribution)))
+      model <- .bstsModel(y_model = y_train, niter = niter, mod = mod)
+      # if(full_pred)
+      one_step_pred <- predict(model, horizon = k, burn = 0, seed = 1)
+      # else
+      #  one_step_pred <- predict(model,horizon = 1)
+      one_step_matrix <- one_step_pred$distribution[, k]
+      return(one_step_matrix)
+    })
+
+    one_step_matrix <- cbind(matrix(NA, nrow = niter, ncol = k + 1), one_step_matrix)
+  } else {
+    future::plan("future::multisession")
+    one_step_matrix <- future.apply::future_sapply(X= 2:(length(y) - k),FUN = function(x){
+      y_train <- y[1:x]
+      if(model_window > 0)
+        y_train <- tail(y_train,model_window)
+      model <- .bstsModel(y_model = y_train, niter = niter, mod = mod)
+      # if(full_pred)
+      one_step_pred <- predict(model, horizon = k, burn = 0, seed = 1)
+      # else
+      #  one_step_pred <- predict(model,horizon = 1)
+      one_step_matrix <- one_step_pred$distribution[, k]
+      return(one_step_matrix)
+    })
+
+    future::plan("future::sequential")
+    one_step_matrix <- cbind(matrix(NA, nrow = niter, ncol = k + 1), one_step_matrix)
   }
 
   return(one_step_matrix)
-
 }
 
 
@@ -941,41 +979,67 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
     for (j in seq_along(modelNames)) {
 
-      startProgressbar(length(y)/7,gettextf(paste0("Running forecasting model ", j, " / ",length(modelNames)," :",modelNames[j])))
-
-      mc.core <- 7
-      if(Sys.info()[['sysname']] == "Windows")
-        mc.core <- 1
-      modelList[[modelNames[j]]] <- mcsapply(mc.cores = mc.core,X = 2:(length(y)-k),FUN = function(x){
+      #startProgressbar(length(y)/7,gettextf(paste0("Running forecasting model ", j, " / ",length(modelNames)," :",modelNames[j])))
 
 
-        y_train <- y[1:x]
-        if(options$forecastVerificationModelWindow > 0)
-          y_train <- tail(y_train,options$forecastVerificationModelWindow)
+
+      modelList[[modelNames[j]]] <- .createPredictions(y = y,niter = options$forecastVerificationDraws,parallel = T,mod = modelNames[j],model_function = options$forecastVerificationModelWindow,k = k)
+      #modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
 
 
-        model <- .bstsModel(y_model  = y_train,niter = options$forecastVerificationDraws,mod=modelNames[j])
-        #if(full_pred)
-        one_step_pred <- predict(model,horizon = k,burn = 0,seed = 1)
-        #else
-        #  one_step_pred <- predict(model,horizon = 1)
-        one_step_matrix <- one_step_pred$distribution[,k]
-        #rep(NA,options$forecastVerificationDraws -length(one_step_pred$distribution)))
 
-        progressbarTick()
-        return(one_step_matrix)
+      #if(Sys.info()[['sysname']] != "Windows"){
+      #mc.core <- 7
+      #if(Sys.info()[['sysname']] == "Windows"){
+      #  mc.core <- 1
+     # modelList[[modelNames[j]]] <- mcsapply(mc.cores = mc.core,X = 2:(length(y)-k),FUN = function(x){
+      #modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
+
       }
+      #  y_train <- y[1:x]
+      #  if(options$forecastVerificationModelWindow > 0)
+      #    y_train <- tail(y_train,options$forecastVerificationModelWindow)
+#
+#
+      #  model <- .bstsModel(y_model  = y_train,niter = options$forecastVerificationDraws,mod=modelNames[j])
+      #  #if(full_pred)
+      #  one_step_pred <- predict(model,horizon = k,burn = 0,seed = 1)
+      #  #else
+      #  #  one_step_pred <- predict(model,horizon = 1)
+      #  one_step_matrix <- one_step_pred$distribution[,k]
+      #  #rep(NA,options$forecastVerificationDraws -length(one_step_pred$distribution)))
+#
+      #  progressbarTick()
+      #  return(one_step_matrix)
+      #}
+#
+#
+#
+      #)
+      #if(!is.matrix(modelList[[modelNames[j]]] ))
+      #  stop(gettext(paste0("Models didn't work. Instead of prediction matrix we got:",modelList[1])))
+#
+      #modelList[[modelNames[j]]]  <- cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
+#
+      #} else {
+      #  future::plan("future::multisession")
+      #  modelList[[modelNames[j]]] <- future.apply::future_sapply(X= 2:(length(y) - k),FUN = function(x){
+      #    y_train <- y[1:x]
+      #    if(model_window > 0)
+      #      y_train <- tail(y_train,model_window)
+      #    model <- .bstsModel(y_model = y_train, niter = niter, mod = mod, season = season, nseason = nseason, season.duration = season.duration)
+      #    # if(full_pred)
+      #    one_step_pred <- predict(model, horizon = k, burn = 0, seed = 1)
+      #    # else
+      #    #  one_step_pred <- predict(model,horizon = 1)
+      #    one_step_matrix <- one_step_pred$distribution[, k]
+      #    return(one_step_matrix)
+      #  })
+#
+      #  future::plan("future::sequential")
+      #  modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
+      #}
 
-
-
-      )
-      if(!is.matrix(modelList[[modelNames[j]]] ))
-        stop(gettext(paste0("Models didn't work. Instead of prediction matrix we got:",modelList[1])))
-
-      modelList[[modelNames[j]]]  <- cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
-
-
-    }
 
 
 
@@ -1148,7 +1212,11 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
     modelListForecast <- lapply(modelListForecast, t)
 
+    startProgressbar(1,paste0("Performing BMA - might take a while!"))
+
     fitBMAList <- .computeBMAHelper(y = yModel,modelList = modelListForecast,trainingPeriod = options$forecastVerificationModelWindow,minimiseCRPS = T)
+
+    progressbarTick()
 
     predanBMAResults$object <- fitBMAList
 
