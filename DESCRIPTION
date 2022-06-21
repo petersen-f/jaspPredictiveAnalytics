@@ -14,10 +14,10 @@ Imports:
   jaspGraphs,
   bsts,
   parallel,
+  precrec,
   future,
   future.apply,
-  scoringRules,
-  scoringutils,
+  reshape2,
   Boom
 Suggests:
   testthat

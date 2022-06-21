@@ -184,11 +184,13 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
       one_step_matrix <- one_step_pred$distribution[, k]
       return(one_step_matrix)
     })
-
-    one_step_matrix <- cbind(matrix(NA, nrow = niter, ncol = k + 1), one_step_matrix)
+    #print(one_step_pred)
+    if(!is.matrix(one_step_pred))
+      stop(gettext(paste0("Models didn't work. Instead of prediction matrix we got:",one_step_pred)))
+    one_step_matrix <- cbind(matrix(NA, nrow = niter, ncol = k + 1), one_step_pred)
   } else {
     future::plan("future::multisession")
-    one_step_matrix <- future.apply::future_sapply(X= 2:(length(y) - k),FUN = function(x){
+    one_step_matrix <- future.apply::future_sapply(future.seed = NULL,X= 2:(length(y) - k),FUN = function(x){
       y_train <- y[1:x]
       if(model_window > 0)
         y_train <- tail(y_train,model_window)
@@ -216,7 +218,13 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   return(sapply(y, function(s) (s - m)^2 / v + log(v)))
 }
 
+.brierScore <- function(pred,real,calc_mean = F){
 
+  brier <- (real-pred)^2
+  if(calc_mean)
+    brier <- mean(brier,na.rm=T)
+  return(brier)
+}
 
 .crpsScore <- function(y,dat){
   c_1n <- 1 / length(dat)
@@ -238,6 +246,29 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   else answer
 }
 
+# determines quantile rank of value against ecdf
+quantInv <- function(distr, value){
+  if(all(is.na(distr))) return(NA)
+  if(sum(distr < value) == length(distr))
+    return(1) # 1 if valuelarger than all MCMC draws
+  else if (sum(distr > value) == length(distr))
+    return(0) # 0 if value smaller than all MCMC draws
+  else
+    ecdf(distr)(value)
+}
+
+quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
+
+.computeOutOfBoundProbability <- function(modelList,upperBound,lowerBound,simplify = F){
+  outBoundProbList <- lapply(modelList, function(x) {
+    data.frame(upper= 1 - quantInvVec(t(x),upperBound),lower = quantInvVec(t(x),lowerBound))
+  })
+  dim(outBoundProbList)
+  names(outBoundProbList) <- names(modelList)
+  if(simplify)
+    outBoundProbList <- do.call(cbind, outBoundProbList)
+  return(outBoundProbList)
+}
 
 ###esemble functions
 
@@ -321,7 +352,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
 ##### dependencies
 .boundDependencies <- function(){
-  return(c("errorBoundMethodDrop",
+  return(c("dependent","errorBoundMethodDrop",
            "manualBoundMethod",
            "manualBoundMean",
            "manualBoundErrorBound",
@@ -409,7 +440,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   dataControl$outBound <- ifelse(dataControl$y > upperLimit | dataControl$y < lowerLimit,T,F)
   dataControl$outBoundNum <- as.numeric(dataControl$outBound)
   dataControl$outBoundArea[!is.na(dataControl$y)] <- "Inside"
-  dataControl$outBoundArea[!is.na(dataControl$outBound)] <- ifelse(dataControl$y[!is.na(dataControl$outBound)] > upperLimit,"Above","Below")
+  dataControl$outBoundArea[!is.na(dataControl$outBound)] <- ifelse(dataControl$y[!is.na(dataControl$outBound)] > upperLimit,"Above",ifelse(dataControl$y[!is.na(dataControl$outBound)] < lowerLimit,"Below","Inside"))
 
   dataControl$distance[!is.na(dataControl$outBound)] <- ifelse(dataControl$y[!is.na(dataControl$outBound)] > upperLimit,
                                                        dataControl$y[!is.na(dataControl$outBound)] - upperLimit,
@@ -983,7 +1014,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
 
 
-      modelList[[modelNames[j]]] <- .createPredictions(y = y,niter = options$forecastVerificationDraws,parallel = T,mod = modelNames[j],model_function = options$forecastVerificationModelWindow,k = k)
+      modelList[[modelNames[j]]] <- .createPredictions(y = y,niter = options$forecastVerificationDraws,parallel = F,mod = modelNames[j],model_function = options$forecastVerificationModelWindow,k = k)
       #modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
 
 
@@ -1101,11 +1132,11 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
   controlData <- predanResults[[1]]
 
-  y <- controlData$y
 
   if(options$forecastVerificationModelHistory >0)
-    y <- tail(y,options$forecastVerificationModelHistory)
+    controlData <- tail(controlData,options$forecastVerificationModelHistory)
 
+  y <- controlData$y
 
 
   forecastMetricTable$addColumnInfo(name= "Model", title = "", type = "string")
@@ -1114,9 +1145,27 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   if(options$forecastMetricsCRPS) forecastMetricTable$addColumnInfo(name = "CRPS", title= "CRPS", type = "number")
   if(options$forecastMetricsDSS) forecastMetricTable$addColumnInfo(name = "DSS", title= "DSS", type = "number")
   ##if(options$forecastMetricsRSME) forecastMetricTable$addColumnInfo(name = "RMSE", title= "RMSE", type = "number")
+  if(options$forecastMetricsAUC){
+    forecastMetricTable$addColumnInfo(name = "aucUp",title = "Upper Bound", type = "number",
+                                      overtitle = "Receiver Operator Characteristic")
+    forecastMetricTable$addColumnInfo(name = "aucLo",title = "Lower Bound", type = "number",
+                                      overtitle = "Receiver Operator Characteristic")
+  }
+  if(options$forecastMetricsPR){
+    forecastMetricTable$addColumnInfo(name = "prUp",title = "Upper Bound", type = "number",
+                                      overtitle = "Precision-Recall Score")
+    forecastMetricTable$addColumnInfo(name = "prLo",title = "Lower Bound", type = "number",
+                                      overtitle = "Precision-Recall Score")
+  }
+  if(options$forecastMetricsBrier){
+    forecastMetricTable$addColumnInfo(name = "brierUp", title= "Upper Bound", type = "number",
+                                      overtitle = "Brier Score",format = "sf:4;dp:4")
+    forecastMetricTable$addColumnInfo(name = "brierLo", title= "Lower Bound", type = "number",
+                                      overtitle = "Brier Score",format = "sf:4;dp:4")
 
+  }
 
-  .predanForecastVerificationModelsTableFill(y,jaspResults,forecastMetricTable,modelListForecast,options)
+  .predanForecastVerificationModelsTableFill(y,controlData,jaspResults,forecastMetricTable,modelListForecast,options)
 
 
   jaspResults[["predanMainContainer"]][["forecastMetricTable"]] <- forecastMetricTable
@@ -1127,7 +1176,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
 }
 
-.predanForecastVerificationModelsTableFill <- function(y,jaspResults,forecastMetricTable,modelListForecast,options){
+.predanForecastVerificationModelsTableFill <- function(y,controlData,jaspResults,forecastMetricTable,modelListForecast,options){
 
   scoringResults <- list()
 
@@ -1143,17 +1192,53 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   if(options$forecastMetricsDSS) scoringResults[["DSS"]] <- sapply(modelListForecast,function(x) .dssScore(as.numeric(y[indexMetrics]),t(x[,indexMetrics])))
   #if(options$forecastMetricsRSME) scoringResults[["RSME"]] <-
 
-  if(!is.null(jaspResults[["predanResults"]][["predanBMAResults"]])){
-    fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
-    crpsBMA <- ensembleBMA::crps(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame)
 
-    if(nrow(scoringResults$CRPS) !=nrow(crpsBMA))
-      stop(paste0("nrow of scoring is: ",nrow(scoringResults$CRPS), "other is" ,nrow(crpsBMA)))
-    scoringResults$CRPS  <- cbind(scoringResults$CRPS,crpsBMA)
-    scoringResults$DSS  <- cbind(scoringResults$DSS,NA,NA)
-    #scoringResults[["CRPS"]][,"BMA"] <-crpsBMA[[2]]
-    #forecastMetricTable$addRows(list(Model = "ensemble",CRPS = crpsBMA[[1]],DSS = NA))
-    #forecastMetricTable$addRows(list(Model = "BMA",CRPS = crpsBMA[[2]],DSS = NA))
+
+  upperLimit <- jaspResults[["predanResults"]][["predanBounds"]][["object"]][["upperLimit"]]
+  lowerLimit <- jaspResults[["predanResults"]][["predanBounds"]][["object"]][["lowerLimit"]]
+
+  outOfBoundProbability <- .computeOutOfBoundProbability(modelList = modelListForecast,upperBound = upperLimit,lowerBound = lowerLimit,simplify = T)
+
+
+  outOfBoundUpper <- outOfBoundProbability[,grepl("upper",colnames(outOfBoundProbability))]
+  outOfBoundLower <- outOfBoundProbability[,grepl("lower",colnames(outOfBoundProbability))]
+
+
+  #View(controlData)
+  yUpper <- as.numeric(controlData$outBoundArea == "Above")
+  yLower <- as.numeric(controlData$outBoundArea == "Below")
+
+
+
+  if(options$forecastMetricsBrier){
+
+    #brierUpper <- .brierScore(pred = outOfBoundUpper$`bsts-local.upper`[indexMetrics],yUpper[indexMetrics])
+    brierUpper <- apply(outOfBoundUpper, 2, function(x) .brierScore(pred = x[indexMetrics],real = yUpper[indexMetrics]))
+    brierLower <- apply(outOfBoundLower, 2, function(x) .brierScore(pred = x[indexMetrics],real = yLower[indexMetrics]))
+
+
+
+
+
+
+
+    scoringResults[["brierUp"]] <- brierUpper
+    scoringResults[["brierLo"]] <- brierLower
+    scoringResults$CRPS  <- scoringResults$CRPS
+    scoringResults$DSS  <- scoringResults$DSS
+    View(scoringResults)
+  }
+
+  if(options$forecastMetricsAUC | options$forecastMetricsPR){
+    #View(outOfBoundLower)
+    aucUpper <- try(precrec::evalmod(scores=outOfBoundUpper[indexMetrics,],
+                                 labels = yUpper[indexMetrics],
+                                 modnames = c(names(modelListForecast))))
+    aucLower <- try(precrec::evalmod(scores=outOfBoundLower[indexMetrics,],
+                                 labels = yLower[indexMetrics],
+                                 modnames = c(names(modelListForecast))))
+
+
 
   }
 
@@ -1161,16 +1246,44 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
 
 
-
-
-
   scoringResultsMean <- as.data.frame(lapply(scoringResults,colMeans,na.rm=T))
-
+  #View(scoringResultsMean)
 
   ##if(options$forecastMetricsRSME) scoringResultsMean$RSME  <- sapply(modelListForecast,function(x) sqrt(sum((y[2:length(y)] - colMeans(x,na.rm = T))^2,na.rm=T)/(length(y)-1)))
   #stop(gettext(paste0(scoringResultsMean)))
 
+  #rownames(scoringResultsMean)[rownames(scoringResultsMean)==""] <- "climatology"
 
+
+  if(!is.null(jaspResults[["predanResults"]][["predanBMAResults"]])){
+    fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+
+    bmaScores <- data.frame()
+    if(options$forecastMetricsBrier){
+      brierBMA <- ensembleBMA::brierScore(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,thresholds = c(upperLimit,lowerLimit))
+      brierUp <-  t(brierBMA)[2:4,1]
+      brierLo <-  t(brierBMA)[2:4,2]
+    }
+
+    if(options$forecastMetricsCRPS)
+      crpsBMA <- c(NA,colMeans(ensembleBMA::crps(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame)))
+    if(options$forecastMetricsDSS)
+      dssBMA <- c(NA,NA,NA)
+
+    bmaMetrics <- cbind(CRPS = crpsBMA,DSS = dssBMA,brierUp,brierLo)
+    View(bmaMetrics)
+    print(scoringResultsMean)
+    scoringResultsMean <- rbind(scoringResultsMean,bmaMetrics)
+    rownames(scoringResultsMean)[rownames(scoringResultsMean)==""] <- c("climatologist","ensemble","BMA")
+
+    View(scoringResultsMean)
+
+
+
+
+    #scoringResultsMean$brierUp <- c(scoringResultsMean$brierUp,brierBMA[1,3:4])
+    #scoringResultsMean$brierLo <- c(scoringResultsMean$brierLo,brierBMA[2,3:4])
+  }
   forecastMetricTable[["Model"]] <- rownames(scoringResultsMean)
 
   if(options$forecastMetricsDSS) forecastMetricTable[["DSS"]] <- scoringResultsMean$DSS
@@ -1180,9 +1293,37 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   #if(options$forecastMetricsRSME) forecastMetricTable[["RSME"]] <- scoringResultsMean$RSME
 
 
+  if(options$forecastMetricsBrier){
+    forecastMetricTable[["brierUp"]] <- scoringResultsMean$brierUp
+    forecastMetricTable[["brierLo"]] <- scoringResultsMean$brierLo
+  }
 
 
+  if(options$forecastMetricsAUC){
+    if(!jaspBase::isTryError(aucUpper)){
+    rocUpperScore <- subset(precrec::auc(predUpper),curvetypes=="ROC")[,"aucs"]
+    names(rocUpperScore) <- names(modelListForecast)
+    forecastMetricTable[["aucUp"]] <- rocUpperScore
+    }
+    if(!jaspBase::isTryError(aucLower)){
+    rocLowerScore <- subset(precrec::auc(aucLower),curvetypes=="ROC")[,"aucs"]
+    names(rocLowerScore) <- names(modelListForecast)
+    forecastMetricTable[["aucLo"]] <- rocLowerScore
+    }
+  }
 
+  if(options$forecastMetricsPR){
+    if(!jaspBase::isTryError(aucUpper)){
+      prUpperScore <- subset(precrec::auc(predUpper),curvetypes=="PRC")[,"aucs"]
+      names(prUpperScore) <- names(modelListForecast)
+      forecastMetricTable[["prUp"]] <- prUpperScore
+    }
+    if(!jaspBase::isTryError(aucLower)){
+      prLowerScore <- subset(precrec::auc(aucLower),curvetypes=="PRC")[,"aucs"]
+      names(prLowerScore) <- names(modelListForecast)
+      forecastMetricTable[["prLo"]] <- prLowerScore
+    }
+  }
 
 
 
@@ -1214,7 +1355,13 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
     startProgressbar(1,paste0("Performing BMA - might take a while!"))
 
-    fitBMAList <- .computeBMAHelper(y = yModel,modelList = modelListForecast,trainingPeriod = options$forecastVerificationModelWindow,minimiseCRPS = T)
+
+    fitBMAList <- .computeBMAHelper(y = yModel,
+                                    modelList = modelListForecast,
+                                    trainingPeriod = ifelse(options$forecastVerificationModelWindow == 0,
+                                                            1,
+                                                            options$forecastVerificationModelWindow),
+                                    minimiseCRPS = T)
 
     progressbarTick()
 
@@ -1266,7 +1413,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
 
 .predanBMAPlots <- function(jaspResults,dataset,options,ready){
-  if(!ready) return()
+  if(!ready |is.null(jaspResults[["predanResults"]][["predanBMAResults"]])) return()
 
   fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
 
@@ -1284,12 +1431,15 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
   if(options$checkBMATrainingPlot)
     .predanBMATrainingPlot(jaspResults,fitBMAObject,fitBMAData,yModel)
+  if(options$checkmodelWeightsPlot)
+    .predanBMAWeightsPlot(jaspResults,controlData,fitBMAObject,options,ready)
+
 }
 
 
 .predanBMATrainingPlot <- function(jaspResults,fitBMAObject,fitBMAData,yModel){
 
-  predanBMATrainingPlot <- createJaspPlot("Model Averaged Prediction")
+  predanBMATrainingPlot <- createJaspPlot(title = "Model Averaged Prediction",height = 320, width = 480)
 
   quantilesBMA <- as.data.frame(ensembleBMA::quantileForecast(fit =fitBMAObject,ensembleData = fitBMAData,quantiles = c(0.025,0.5,0.975) ),)
   colnames(quantilesBMA) <- c("lowerCI","median","higherCI")
@@ -1298,13 +1448,47 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   quantilesBMA$time <- trainingIndex
   p <- ggplot2::ggplot(data = quantilesBMA,mapping =  ggplot2::aes(x=time,y=median)) +
     ggplot2::geom_line(col="red") + ggplot2::geom_line(ggplot2::aes(y=lowerCI))  +
-    ggplot2::geom_line(ggplot2::aes(y=higherCI)) + ggplot2::geom_point(ggplot2::aes(y=actual)) + ggplot2::theme_classic()
+    ggplot2::geom_line(ggplot2::aes(y=higherCI)) + ggplot2::geom_point(ggplot2::aes(y=actual)) + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
+    ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid)
 
   predanBMATrainingPlot$plotObject <- p
 
   jaspResults[["predanResults"]][["predanBMATrainingPlot"]] <- predanBMATrainingPlot
 
   return()
+
+}
+
+.predanBMAWeightsPlot <- function(jaspResults,controlData,fitBMAObject,options,ready){
+
+  rolling <- options$modelWeightRunningWindow
+  predanModelWeightPlot <- createJaspPlot(title = paste0("Rolling average of model weights with window: ",rolling),height = 320, width = 480)
+
+  weights <- fitBMAObject$weights
+  weights <- apply(weights, 1,stats::filter,rep(1/rolling,rolling))
+  #filter(weights, rep(1/2,2))
+
+
+  t <- tail(controlData$time,options$forecastVerificationModelHistory)[-c(1:(fitBMAObject$training$days+1))]
+
+
+  rownames(weights) <- t
+  weights <- reshape2::melt(weights)
+
+  colnames(weights) <- c("time","model","value")
+
+  p <-  ggplot2::ggplot(weights,ggplot2::aes(x = time,y = value,color=model)) + ggplot2::geom_line() +
+    ggplot2::geom_point() +
+    ggplot2::ylim(0,1) + jaspGraphs::themeJaspRaw(legend.position = "right")  + jaspGraphs::geom_rangeframe() +
+    ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) + ggplot2::labs(color="Models")
+
+  predanModelWeightPlot$plotObject <- p
+
+  jaspResults[["predanResults"]][["predanModelWeightPlot"]] <- predanModelWeightPlot
+
+  return()
+
+
 
 }
 

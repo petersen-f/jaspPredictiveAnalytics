@@ -266,12 +266,12 @@ Form
 		{
 			Layout.columnSpan: 1
 	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
-			IntegerField{name: "forecastVerificationModelWindow";label: "Model Window";defaultValue:100;min: 0}
+			IntegerField{name: "forecastVerificationModelWindow";label: "Model Window";defaultValue: 30 ;min: 0}
 
 		}
 		Group
 		{
-			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:100;min: 10}
+			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:10;min: 10}
 
 			IntegerField{name: "forecastVerificationModelHistory";label: "Model History";defaultValue:200;min: 0}
 
@@ -299,6 +299,9 @@ Form
 			//CheckBox{name:"forecastMetricsLog";label: "Logarithmic score";checked:true}
 			CheckBox{name:"forecastMetricsCRPS";label: "Continuous ranked probability score";checked:true}
 			CheckBox{name:"forecastMetricsDSS";label: "Dawid-Sebastiani score";checked:true}
+			CheckBox{name:"forecastMetricsAUC";label: "Receiver Operator Characteristics";checked:true}
+			CheckBox{name:"forecastMetricsPR";label: "Precision-Recall score";checked:true}
+			CheckBox{name:"forecastMetricsBrier";label: "Brier score";checked:true}
 			//CheckBox{name:"forecastMetricsRSME";label: "Root Mean Squared Error"}
 
 
@@ -308,17 +311,49 @@ Form
 	{
 		title: qsTr("Bayesian Model Averaging")
 
-		CheckBox
+		Group
 		{
-			name: "checkBMA"
-			label: "Perform BMA"
+			//DropDown
+			//{
+			//	label: qsTr("Bias correction method")
+
+			//	name: "BMABiasCorrectionMethod"
+			//	values:
+ 			//	[
+    		//		{ label: "None", value: "none" },
+    		//		{ label: "Additive", value: "additive"},
+			//		{ label: "Regression", value: "regression"}
+  			//	]
+			//}
+			CheckBox{name: "checkBMA";label: "Perform BMA"}
+			IntegerField{name: "BMAtrainingPeriod"}
 
 		}
 
-		CheckBox{name: "checkBMAmodelWeights"; label: "Show model weights"}
+		Group
+		{
+			title: qsTr("Model weights")
 
+		CheckBox{name: "checkBMAmodelWeights"; label: "Show table"}
+		CheckBox
+		{
+			name: "checkmodelWeightsPlot"
+			label: qsTr("Plot weights over time")
+			IntegerField{name: "modelWeightRunningWindow";label: qsTr("Running average window:");min: 1;defaultValue:1}
+
+
+		}
+	}
 		CheckBox{name: "checkBMATrainingPlot"; label: "Show averaged predictions"}
+		Group{
 
+			title: "Future Predictions"
+
+			CheckBox{name: "checkFuturePredictionPlot"; label: "Future prediction plot"}
+			CheckBox{name: "checkFuturePredictionTable"; label: "Future out-of-bound probability"}
+
+
+		}
 	}
 
 }
