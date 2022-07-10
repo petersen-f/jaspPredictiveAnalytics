@@ -95,7 +95,20 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   return(res)
 }
 
+# finds intersection between lines
+.findCross <- function(time,y,limit){
+  d <- y - limit
+  signChanges <- (d[1:(length(d)-1)] * d[2:length(d)]) <= 0
+  left <- c(signChanges, FALSE)
+  right <- c(FALSE, signChanges)
+  t <- (limit - y[left])/(y[right] - y[left])
+  x2 <- (1 - t)*time[left] + (1-t)*time[right]
 
+  if(length(x2 ) > 0)
+    return(data.frame(y=limit,time  = x2, include=0,outBound=T))
+  else
+    return(data.frame(y=NULL, time=NULL,  include=NULL,outBound=NULL))
+}
 
 
 
@@ -497,17 +510,34 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   }
 
 
+  plotData <- controlData[1:3]
+  plotData$include = 1
+
+  plotData <- rbind(plotData,
+                    findCross(time,y,upperLimit),
+                    findCross(time,y,lowerLimit))
+
+
+  plotData <- plotData[order(plotData$time),]
+
+  plotData$includeLine <- NA
+  for (i in 2:nrow(plotData)) {
+    plotData$includeLine[i] <- ifelse((plotData$include[i]==0 & plotData$include[i+1] &plotData$outBound[i+1]==T)|plotData$outBound[i]&plotData$outBound[i+1]==T,T,F)
+
+  }
+
+
+
 
     predanControlPlot <- createJaspPlot(title= title, height = 320, width = 480)
-    p <-ggplot2::ggplot(controlData,ggplot2::aes(time,y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
+    p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(time,y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
       ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred")+
       ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred")+
       ggplot2::scale_color_manual(guide="none",values=c("#4E84C4","#D16103"))
 
 
   if(options$controlLineType %in% c("line","both"))
-    p <- p + ggplot2::geom_line(size=1,ggplot2::aes(colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit)),
-                                lineend = "round",linejoin ="round")
+    p <- p + ggplot2::geom_line(size=1,data=plotData,aes(time,y,colour=ggplot2::after_stat(plotData$includeLine)))
   if(options$controlLineType %in% c("points","both"))
     p <- p + ggplot2::geom_point(size=2)
 
@@ -1014,67 +1044,10 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
-      modelList[[modelNames[j]]] <- .createPredictions(y = y,niter = options$forecastVerificationDraws,parallel = F,mod = modelNames[j],model_function = options$forecastVerificationModelWindow,k = k)
-      #modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
-
-
-
-      #if(Sys.info()[['sysname']] != "Windows"){
-      #mc.core <- 7
-      #if(Sys.info()[['sysname']] == "Windows"){
-      #  mc.core <- 1
-     # modelList[[modelNames[j]]] <- mcsapply(mc.cores = mc.core,X = 2:(length(y)-k),FUN = function(x){
+      modelList[[modelNames[j]]] <- .createPredictions(y = y,niter = options$forecastVerificationDraws,parallel = T,mod = modelNames[j],model_function = options$forecastVerificationModelWindow,k = k)
       #modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
 
       }
-      #  y_train <- y[1:x]
-      #  if(options$forecastVerificationModelWindow > 0)
-      #    y_train <- tail(y_train,options$forecastVerificationModelWindow)
-#
-#
-      #  model <- .bstsModel(y_model  = y_train,niter = options$forecastVerificationDraws,mod=modelNames[j])
-      #  #if(full_pred)
-      #  one_step_pred <- predict(model,horizon = k,burn = 0,seed = 1)
-      #  #else
-      #  #  one_step_pred <- predict(model,horizon = 1)
-      #  one_step_matrix <- one_step_pred$distribution[,k]
-      #  #rep(NA,options$forecastVerificationDraws -length(one_step_pred$distribution)))
-#
-      #  progressbarTick()
-      #  return(one_step_matrix)
-      #}
-#
-#
-#
-      #)
-      #if(!is.matrix(modelList[[modelNames[j]]] ))
-      #  stop(gettext(paste0("Models didn't work. Instead of prediction matrix we got:",modelList[1])))
-#
-      #modelList[[modelNames[j]]]  <- cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
-#
-      #} else {
-      #  future::plan("future::multisession")
-      #  modelList[[modelNames[j]]] <- future.apply::future_sapply(X= 2:(length(y) - k),FUN = function(x){
-      #    y_train <- y[1:x]
-      #    if(model_window > 0)
-      #      y_train <- tail(y_train,model_window)
-      #    model <- .bstsModel(y_model = y_train, niter = niter, mod = mod, season = season, nseason = nseason, season.duration = season.duration)
-      #    # if(full_pred)
-      #    one_step_pred <- predict(model, horizon = k, burn = 0, seed = 1)
-      #    # else
-      #    #  one_step_pred <- predict(model,horizon = 1)
-      #    one_step_matrix <- one_step_pred$distribution[, k]
-      #    return(one_step_matrix)
-      #  })
-#
-      #  future::plan("future::sequential")
-      #  modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
-      #}
-
-
-
-
-
     # baselinemodels
 
     if(options$forecastModelBaselineRunVar)
@@ -1082,32 +1055,6 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
     if(options$forecastModelBaselineRunVarMean)
       modelList$baselineRunVarMean <- .baslinePredictionModel(y = y, window = 20,niter = options$forecastVerificationDraws,runningMean = T,k = k)
-
-
-
-
-
-
-
-    #if(Sys.info()[['sysname']] == "Linux"){
-    #  modelList <- parallel::mclapply(X = seq_along(modelNames),
-    #                                  FUN = function(x)
-    #                                    .createPredictions(y = y,niter = 500,
-    #                                                       model_function = .bstsModel,
-    #                                                       full_pred = T,
-    #                                                       mod =  modelNames[x],
-    #                                                       model_window = options$forecastVerificationModelWindow)
-    #  )
-    #} else {
-    #  modelList <- lapply(X = seq_along(modelNames),
-    #                      FUN = function(x)
-    #                        .createPredictions(y = y,niter = 500,
-    #                                           model_function = .bstsModel,
-    #                                           full_pred = T,
-    #                                           mod =  modelNames[x],
-    #                                           model_window = options$forecastVerificationModelWindow)
-    #  )
-    #}
 
     predanForecastVerificationModels$object <- modelList
 
@@ -1216,12 +1163,6 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     brierUpper <- apply(outOfBoundUpper, 2, function(x) .brierScore(pred = x[indexMetrics],real = yUpper[indexMetrics]))
     brierLower <- apply(outOfBoundLower, 2, function(x) .brierScore(pred = x[indexMetrics],real = yLower[indexMetrics]))
 
-
-
-
-
-
-
     scoringResults[["brierUp"]] <- brierUpper
     scoringResults[["brierLo"]] <- brierLower
     scoringResults$CRPS  <- scoringResults$CRPS
@@ -1229,18 +1170,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     View(scoringResults)
   }
 
-  if(options$forecastMetricsAUC | options$forecastMetricsPR){
-    #View(outOfBoundLower)
-    aucUpper <- try(precrec::evalmod(scores=outOfBoundUpper[indexMetrics,],
-                                 labels = yUpper[indexMetrics],
-                                 modnames = c(names(modelListForecast))))
-    aucLower <- try(precrec::evalmod(scores=outOfBoundLower[indexMetrics,],
-                                 labels = yLower[indexMetrics],
-                                 modnames = c(names(modelListForecast))))
 
-
-
-  }
 
 
 
@@ -1260,23 +1190,31 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
     bmaScores <- data.frame()
     if(options$forecastMetricsBrier){
-      brierBMA <- ensembleBMA::brierScore(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,thresholds = c(upperLimit,lowerLimit))
-      brierUp <-  t(brierBMA)[2:4,1]
-      brierLo <-  t(brierBMA)[2:4,2]
+      brierBMA <- ensembleBMA::brierScore(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,thresholds = c(upperLimit,lowerLimit))[-2]
+      brierUp <-  t(brierBMA)[2:3,1]
+      brierLo <-  t(brierBMA)[2:3,2]
     }
 
     if(options$forecastMetricsCRPS)
-      crpsBMA <- c(NA,colMeans(ensembleBMA::crps(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame)))
+      crpsBMA <- c(colMeans(ensembleBMA::crps(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame)))
     if(options$forecastMetricsDSS)
-      dssBMA <- c(NA,NA,NA)
+      dssBMA <- c(NA,NA)
+
+    if(options$forecastMetricsPR | options$forecastMetricsAUC){
+      outOfBoundBMA <- ensembleBMA::cdf(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,values = c(upperLimit,lowerLimit))
+      outOfBoundBMA[,1] <- 1-outOfBoundBMA[,1]
+      outOfBoundUpper <- cbind(outOfBoundUpper,BMA = c(rep(NA,length(indexMetrics)),outOfBoundBMA[,1]))
+      outOfBoundLower <- cbind(outOfBoundLower,BMA = c(rep(NA,length(indexMetrics)),outOfBoundBMA[,2]))
+
+    }
 
     bmaMetrics <- cbind(CRPS = crpsBMA,DSS = dssBMA,brierUp,brierLo)
-    View(bmaMetrics)
-    print(scoringResultsMean)
+    #View(bmaMetrics)
+    #print(scoringResultsMean)
     scoringResultsMean <- rbind(scoringResultsMean,bmaMetrics)
-    rownames(scoringResultsMean)[rownames(scoringResultsMean)==""] <- c("climatologist","ensemble","BMA")
+    rownames(scoringResultsMean)[rownames(scoringResultsMean)==""] <- c("ensemble","BMA")
 
-    View(scoringResultsMean)
+    #View(scoringResultsMean)
 
 
 
@@ -1284,6 +1222,28 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     #scoringResultsMean$brierUp <- c(scoringResultsMean$brierUp,brierBMA[1,3:4])
     #scoringResultsMean$brierLo <- c(scoringResultsMean$brierLo,brierBMA[2,3:4])
   }
+
+
+  if(options$forecastMetricsAUC | options$forecastMetricsPR){
+    #View(outOfBoundLower)
+    aucUpper <- try(precrec::evalmod(scores=outOfBoundUpper[indexMetrics,],
+                                     labels = yUpper[indexMetrics],
+                                     modnames = c(colnames(outOfBoundUpper))))
+    aucLower <- try(precrec::evalmod(scores=outOfBoundLower[indexMetrics,],
+                                     labels = yLower[indexMetrics],
+                                     modnames = c(colnames(outOfBoundUpper))))
+
+
+
+  }
+
+
+
+
+
+
+
+
   forecastMetricTable[["Model"]] <- rownames(scoringResultsMean)
 
   if(options$forecastMetricsDSS) forecastMetricTable[["DSS"]] <- scoringResultsMean$DSS
@@ -1301,26 +1261,31 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   if(options$forecastMetricsAUC){
     if(!jaspBase::isTryError(aucUpper)){
-    rocUpperScore <- subset(precrec::auc(predUpper),curvetypes=="ROC")[,"aucs"]
-    names(rocUpperScore) <- names(modelListForecast)
+    rocUpperScore <- subset(precrec::auc(aucUpper),curvetypes=="ROC")[,"aucs"]
+    if("BMA" %in% colnames(outOfBoundLower)) rocUpperScore <- c(rocUpperScore[1:2],NA,rocUpperScore[3])
+    names(rocUpperScore) <- rownames(scoringResultsMean)
     forecastMetricTable[["aucUp"]] <- rocUpperScore
     }
     if(!jaspBase::isTryError(aucLower)){
     rocLowerScore <- subset(precrec::auc(aucLower),curvetypes=="ROC")[,"aucs"]
-    names(rocLowerScore) <- names(modelListForecast)
+    if("BMA" %in% colnames(outOfBoundLower)) rocLowerScore <- c(rocLowerScore[1:2],NA,rocLowerScore[3])
+    names(rocLowerScore) <- rownames(scoringResultsMean)
     forecastMetricTable[["aucLo"]] <- rocLowerScore
     }
   }
 
   if(options$forecastMetricsPR){
     if(!jaspBase::isTryError(aucUpper)){
-      prUpperScore <- subset(precrec::auc(predUpper),curvetypes=="PRC")[,"aucs"]
-      names(prUpperScore) <- names(modelListForecast)
+      prUpperScore <- subset(precrec::auc(aucUpper),curvetypes=="PRC")[,"aucs"]
+      if("BMA" %in% colnames(outOfBoundLower)) prUpperScore <- c(prUpperScore[1:2],NA,prUpperScore[3])
+      names(prUpperScore) <- rownames(scoringResultsMean)
+
       forecastMetricTable[["prUp"]] <- prUpperScore
     }
     if(!jaspBase::isTryError(aucLower)){
       prLowerScore <- subset(precrec::auc(aucLower),curvetypes=="PRC")[,"aucs"]
-      names(prLowerScore) <- names(modelListForecast)
+      if("BMA" %in% colnames(outOfBoundLower)) prLowerScore <- c(prLowerScore[1:2],NA,prLowerScore[3])
+      names(prLowerScore) <- rownames(scoringResultsMean)
       forecastMetricTable[["prLo"]] <- prLowerScore
     }
   }
