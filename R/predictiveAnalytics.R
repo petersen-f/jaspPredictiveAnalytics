@@ -571,8 +571,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   plotData$include = 1
 
   plotData <- rbind(plotData,
-                    findCross(time,y,upperLimit),
-                    findCross(time,y,lowerLimit))
+                    .findCross(plotData$time,plotData$y,upperLimit),
+                    .findCross(plotData$time,plotData$y,lowerLimit))
 
 
   plotData <- plotData[order(plotData$time),]
@@ -1186,6 +1186,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   scoringResults <- list()
 
 
+
   k <- options$forecastVerificationPredictionSteps
 
   indexMetrics <- -c(1:(options$forecastVerificationModelWindow+2))
@@ -1228,12 +1229,6 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     #View(scoringResults)
   }
 
-
-
-
-
-
-
   scoringResultsMean <- as.data.frame(lapply(scoringResults,colMeans,na.rm=T))
   #View(scoringResultsMean)
 
@@ -1274,12 +1269,11 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     }
 
     bmaMetrics <- cbind(CRPS = crpsBMA,DSS = dssBMA,brierUp,brierLo)
-    #View(bmaMetrics)
-    #print(scoringResultsMean)
+
     scoringResultsMean <- rbind(scoringResultsMean,bmaMetrics)
     rownames(scoringResultsMean)[rownames(scoringResultsMean)==""] <- c("ensemble","BMA")
 
-    #View(scoringResultsMean)
+
 
 
 
@@ -1301,12 +1295,6 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
   }
-
-
-
-
-
-
 
 
   forecastMetricTable[["Model"]] <- rownames(scoringResultsMean)
@@ -1358,8 +1346,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
-
-
+  print(forecastMetricTable[["CRPS"]])
 
 
   return()
@@ -1410,7 +1397,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 }
 
 .predanBMAWeightsTable <- function(jaspResults,dataset,options,ready){
-  if(!ready || !options$checkBMAmodelWeights) return()
+  if(!ready || !options$checkBMAmodelWeights || is.null(jaspResults[["predanResults"]][["predanBMAResults"]])) return()
 
   if(is.null(jaspResults[["predanMainContainer"]][["BMAWeightsTable"]] )){
     BMAWeightsTable <- createJaspTable(title = "Posterior Model Weights")
@@ -1526,7 +1513,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 .predanFuturePredictionHelper <- function(jaspResults,dataset,options,ready){
-  if(!ready| !is.null(jaspResults[["predanResults"]][["predanFutureForecast"]])|!options$checkBoxFuturePredictions) return()
+  if(!ready| !is.null(jaspResults[["predanResults"]][["predanFutureForecast"]])|!options$checkBoxFuturePredictions|is.null(jaspResults[["predanResults"]][["predanBMAResults"]])) return()
   fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
 
   fitBMAObject <- fitBMAList$fitBMAObject
