@@ -325,7 +325,7 @@ Form
 			//		{ label: "Regression", value: "regression"}
   			//	]
 			//}
-			CheckBox{name: "checkBMA";label: "Perform BMA"}
+			CheckBox{name: "checkBMA";label: "Perform BMA";id: bmaEnabled}
 			IntegerField{name: "BMAtrainingPeriod"}
 
 		}
@@ -355,5 +355,84 @@ Form
 
 		}
 	}
+
+	Section
+	{
+
+		title: qsTr("Future Predictions")
+		columns: 2
+
+		CheckBox
+		{
+			name: "checkBoxFuturePredictions"
+			label: qsTr("Predictions")
+
+
+			IntegerField{name: "futurePredictions"; label: qsTr("Number of time points")}
+
+			
+				
+			RadioButtonGroup
+			{
+				title: qsTr("Model choice")
+				name: "predictionModelChoice"
+				radioButtonsOnSameRow: false
+				RadioButton 
+				{ 
+					value: "forecastBMA"
+					label: qsTr("BMA model")
+					enabled: bmaEnabled.checked 
+					IntegerField{name: "modelWeightWindow"; label: qsTr("Model weight window")}
+				}
+				RadioButton 
+				{
+					childrenOnSameRow: true
+					value: "forecastBestModel"
+					label: qsTr("Best model based on") 	
+					DropDown
+					{
+						name: "forecastModelSelectionMetric"
+						id: metricSelection
+						values:
+ 						[
+    						{ label: "CRPS", value: "modelSelectionCRPS"},
+    						{ label: "DSS", value: "modelSelectionDSS"},
+							{ label: "ROC", value: "modelSelectionROC"},
+							{ label: "PR", value: "modelSelectionPR"},
+							{ label: "Brier", value: "modelSelectionBrier"}
+							
+  						]
+					}
+
+
+
+
+
+					
+
+
+
+
+
+
+				}
+			}
+
+		}
+
+		Group
+		{
+		CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
+
+		
+		CheckBox{name: "checkBoxOutBoundProbabilitiesPlot"; label: "Future data predictions"}
+
+
+		}
+
+	}
+
+
+
 
 }

@@ -39,6 +39,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanBMAHelperResults(jaspResults,dataset,options,ready)
     .predanBMAWeightsTable(jaspResults,dataset,options,ready)
     .predanBMAPlots(jaspResults,dataset,options,ready)
+    .predanFuturePredictionHelper(jaspResults,dataset,options,ready)
 
     return()
 }
@@ -354,7 +355,63 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
+#### Future Prediction Helper Functions
+.createFutureModelList <- function(y,niter,horizonFuture,modelWindow,modelsToCalculate){
 
+
+  if(modelWindow >0)
+    y <- tail(y,modelWindow)
+
+  modelListFuture <- list()
+  if(any(modelsToCalculate == "all"))
+    modelsToCalculate <- c("bsts-ar","bsts-local","bsts-trend" ,"bsts-semi", "baselineVar","baselineMean")
+
+  if("bsts-ar"     %in% modelsToCalculate)
+    try(modelListFuture$"bsts-ar" <- predict(.bstsModel(y_model = y,niter = niter,mod = "bsts-ar"),horizon = horizonFuture,burn=100)$distribution)
+
+  if("bsts-local"  %in% modelsToCalculate)
+    try(modelListFuture$"bsts-local" <- predict(.bstsModel(y_model = y,niter = niter,mod = "bsts-local"),horizon = horizonFuture,burn=100)$distribution)
+
+  if("bsts-trend"  %in% modelsToCalculate)
+    try(modelListFuture$"bsts-trend" <- predict(.bstsModel(y_model = y,niter = niter,mod = "bsts-trend"),horizon = horizonFuture,burn=100)$distribution)
+
+  if("bsts-semi"   %in% modelsToCalculate)
+    try(modelListFuture$"bsts-semi" <- predict(.bstsModel(y_model = y,niter = niter,mod = "bsts-semi" ),horizon = horizonFuture,burn=100)$distribution)
+
+  if("baselineVar" %in% modelsToCalculate)
+    modelListFuture$"baselineVar" <- matrix(.baslinePredictionModel(y, niter = niter-100, window  = length(y), k = 1,runningMean = F)[length(y),],
+                                            ncol = horizonFuture,
+                                            nrow = niter-100)
+  if("baselineRunVarMean" %in% modelsToCalculate)
+    modelListFuture$"baselineVarMean" <- matrix(.baslinePredictionModel(y, niter = niter-100, window  = length(y), k = 1,runningMean = T)[length(y),],
+                                                ncol = horizonFuture,
+                                                nrow = niter-100)
+
+  return(modelListFuture)
+}
+
+### helper function that applies BMA weights to predictions
+.bmaFuturePrediction <- function(fitBMAObject, modelListFuturePredictions, weightWindow,limits) {
+  modelWeights <- colMeans(tail(t(fitBMAObject$weights), weightWindow))
+  aWeights <- colMeans(tail(t(fitBMAObject$biasCoefs[1, , ]), weightWindow))
+  bWeights <- colMeans(tail(t(fitBMAObject$biasCoefs[2, , ]), weightWindow))
+
+  biasCorrectedPredictionList <- lapply(X = 1:length(modelListFuturePredictions), FUN = function(x) aWeights[x] + bWeights[x] * modelListFuturePredictions[[x]])
+  names(biasCorrectedPredictionList) <- names(modelListFuturePredictions)
+  weightedPredictions <- lapply(X = 1:length(modelListFuturePredictions), FUN = function(x) biasCorrectedPredictionList[[x]] * modelWeights[x])
+  # add BMA model
+  biasCorrectedPredictionList$BMA <- Reduce("+", weightedPredictions)
+  sumPred2 <- lapply(biasCorrectedPredictionList, .extractQuantiles)
+  sumPredLimitsUpper <- lapply(biasCorrectedPredictionList,function(x) 1-quantInvVec(t(x),limits[1]))
+  sumPredLimitsLower <- lapply(biasCorrectedPredictionList,function(x) quantInvVec(t(x),limits[2]))
+  sumPred2 <- lapply(X = 1:length(sumPred2),function(x) cbind(sumPred2[[x]],upperProb = sumPredLimitsUpper[[x]]))
+  sumPred2 <- lapply(X = 1:length(sumPred2),function(x) cbind(sumPred2[[x]],lowerProb = sumPredLimitsLower[[x]]))
+
+  sumPred2 <- lapply(X = 1:length(sumPred2), function(x) cbind(sumPred2[[x]], model = names(biasCorrectedPredictionList)[x]))
+
+  sumPred2 <- do.call("rbind", sumPred2)
+  return(sumPred2)
+}
 
 
 
@@ -522,7 +579,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   plotData$includeLine <- NA
   for (i in 2:nrow(plotData)) {
-    plotData$includeLine[i] <- ifelse((plotData$include[i]==0 & plotData$include[i+1] &plotData$outBound[i+1]==T)|plotData$outBound[i]&plotData$outBound[i+1]==T,T,F)
+    plotData$includeLine[i] <- ifelse((plotData$include[i] == 0 & plotData$include[i+1] &plotData$outBound[i+1]==T)|
+                                        plotData$outBound[i]&plotData$outBound[i+1]==T,T,F)
 
   }
 
@@ -537,7 +595,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
   if(options$controlLineType %in% c("line","both"))
-    p <- p + ggplot2::geom_line(size=1,data=plotData,aes(time,y,colour=ggplot2::after_stat(plotData$includeLine)))
+    p <- p + ggplot2::geom_line(size=1,data=plotData,ggplot2::aes(time,y,colour=ggplot2::after_stat(plotData$includeLine)))
   if(options$controlLineType %in% c("points","both"))
     p <- p + ggplot2::geom_point(size=2)
 
@@ -1167,7 +1225,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     scoringResults[["brierLo"]] <- brierLower
     scoringResults$CRPS  <- scoringResults$CRPS
     scoringResults$DSS  <- scoringResults$DSS
-    View(scoringResults)
+    #View(scoringResults)
   }
 
 
@@ -1193,12 +1251,19 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
       brierBMA <- ensembleBMA::brierScore(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,thresholds = c(upperLimit,lowerLimit))[-2]
       brierUp <-  t(brierBMA)[2:3,1]
       brierLo <-  t(brierBMA)[2:3,2]
+    } else {
+      brierUp <- NULL
+      brierLo <- NULL
     }
 
     if(options$forecastMetricsCRPS)
       crpsBMA <- c(colMeans(ensembleBMA::crps(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame)))
+    else
+      crpsBMA <- NULL
     if(options$forecastMetricsDSS)
       dssBMA <- c(NA,NA)
+    else
+      dssBMA <- NULL
 
     if(options$forecastMetricsPR | options$forecastMetricsAUC){
       outOfBoundBMA <- ensembleBMA::cdf(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,values = c(upperLimit,lowerLimit))
@@ -1297,7 +1362,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
-  return(scoringResults)
+  return()
 
 }
 
@@ -1456,4 +1521,118 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 }
+
+
+
+
+.predanFuturePredictionHelper <- function(jaspResults,dataset,options,ready){
+  if(!ready| !is.null(jaspResults[["predanResults"]][["predanFutureForecast"]])|!options$checkBoxFuturePredictions) return()
+  fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+
+  fitBMAObject <- fitBMAList$fitBMAObject
+  fitBMAData <- fitBMAList$ensembleDataFrame
+
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  modelListForecast <-  jaspResults[["predanResults"]][["predanForecastVerificationModels"]]$object
+
+  controlData <- predanResults[[1]]
+  upperLimit <- predanResults[[2]]
+
+  lowerLimit <-  predanResults[[3]]
+  limits <- c(upperLimit,lowerLimit)
+  plotLimits <- predanResults[[4]]
+  yModel <- controlData$y
+
+  modelListFuturePredictions <- .createFutureModelList(y = yModel,
+                                                       horizonFuture = options$futurePredictions,
+                                                       niter = 500,modelWindow = 0,
+                                                       modelsToCalculate = names(modelListForecast))
+
+
+  bmaFuturePredictions <- .bmaFuturePrediction(fitBMAObject = fitBMAObject,
+                                               modelListFuturePredictions = modelListFuturePredictions,
+                                               weightWindow = options$modelWeightWindow,
+                                               limits = c(upperLimit,lowerLimit))
+
+
+  if(options$checkBoxOutBoundProbabilities)
+    .futurePredictionsProbabilityTable(controlData,bmaFuturePredictions)
+
+  if(options$checkBoxOutBoundPlot)
+    .futurePredictionPlot(controlData,bmaFuturePredictions,options,plotLimits,limits)
+
+
+}
+
+.futurePredictionsProbabilityTable <- function(controlData,bmaFuturePredictions){
+
+  bmaFuturePredictions <- bmaFuturePredictions[bmaFuturePredictions$model=="BMA",]
+  outBoundTable <- createJaspTable(title= "Future out-of-bound probabilities")
+
+  outBoundTable$addColumnInfo(name= "time", title = "Time point", type = "integer")
+
+  outBoundTable$addColumnInfo(name= "value", title = "Prediction", type = "number")
+  outBoundTable$addColumnInfo(name = "upperPred", title= "Upper", type = "number",
+                              overtitle = "Prediction Interval",format = "sf:4;dp:2")
+  outBoundTable$addColumnInfo(name = "lowerPred", title= "Lower", type = "number",
+                              overtitle = "Prediction Interval",format = "sf:4;dp:2")
+
+  outBoundTable$addColumnInfo(name = "upperProb", title= "Upper bound", type = "number",
+                                    overtitle = "Out-of-bound Probability",format = "sf:4;dp:3")
+  outBoundTable$addColumnInfo(name = "lowerProb", title= "Lower Bound", type = "number",
+                                    overtitle = "Out-of-bound Probability",format = "sf:4;dp:3")
+
+
+  outBoundTable[["time"]] <- bmaFuturePredictions$time + nrow(controlData)
+  outBoundTable[["value"]] <- bmaFuturePredictions$mean
+  outBoundTable[["upperPred"]] <- bmaFuturePredictions$higherCI
+  outBoundTable[["lowerPred"]] <- bmaFuturePredictions$lowerCI
+
+  outBoundTable[["upperProb"]] <- bmaFuturePredictions$upperProb
+  outBoundTable[["lowerProb"]] <- bmaFuturePredictions$lowerProb
+
+  jaspResults[["predanMainContainer"]][["outBoundTable"]] <- outBoundTable
+
+  return()
+}
+
+
+.futurePredictionPlot <- function(controlData,bmaFuturePredictions,options,plotLimits,limits){
+  futurePredictionPlot <- createJaspPlot(title = "Future Predictions", height = 320,width = 480)
+  bmaFuturePredictions <- bmaFuturePredictions[bmaFuturePredictions$model=="BMA",]
+  bmaFuturePredictions$time <- bmaFuturePredictions$time+ nrow(controlData)
+
+  #if(options$forecastVerificationModelHistory>0)
+  #  controlDataPlot <- tail(controlData,options$forecastVerificationModelHistory)
+
+  controlDataPlot <- controlData
+
+  predictionData <- data.frame(time = controlDataPlot$time,
+                               y = controlDataPlot$y,
+                               higherCI = NA,
+                               lowerCI = NA,
+                               mean= NA)
+  bmaFuturePredictions$y <- NA
+  predictionData <- rbind(predictionData,bmaFuturePredictions[c("mean","y","time","higherCI","lowerCI")])
+
+
+  p <- ggplot2::ggplot(predictionData,ggplot2::aes(time,y)) + ggplot2::geom_line() +
+    ggplot2::geom_line(ggplot2::aes(time,mean))+
+    ggplot2::geom_ribbon(ggplot2::aes(ymin=lowerCI,ymax=higherCI),alpha=0.2,fill="blue") +
+    jaspGraphs::themeJaspRaw() +
+    jaspGraphs::geom_rangeframe() +
+    ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
+    ggplot2::coord_cartesian(ylim = rev(plotLimits)) +
+    ggplot2::geom_hline(yintercept = limits[1],linetype="dashed",color="darkred") +
+    ggplot2::geom_hline(yintercept = limits[2],linetype="dashed",color="darkred")
+
+
+  futurePredictionPlot$plotObject <- p
+
+  jaspResults[["predanMainContainer"]][["futurePredictionPlot"]] <- futurePredictionPlot
+
+  return()
+
+}
+
 
