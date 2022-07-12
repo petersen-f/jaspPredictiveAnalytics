@@ -1199,50 +1199,6 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   #rownames(scoringResultsMean)[rownames(scoringResultsMean)==""] <- "climatology"
 
 
-  if(!is.null(jaspResults[["predanResults"]][["predanBMAResults"]])){
-    fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
-
-    bmaScores <- data.frame()
-    if(options$forecastMetricsBrier){
-      brierBMA <- ensembleBMA::brierScore(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,thresholds = c(upperLimit,lowerLimit))[-2]
-      brierUp <-  t(brierBMA)[2:3,1]
-      brierLo <-  t(brierBMA)[2:3,2]
-    } else {
-      brierUp <- NULL
-      brierLo <- NULL
-    }
-
-    if(options$forecastMetricsCRPS)
-      crpsBMA <- c(colMeans(ensembleBMA::crps(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame)))
-    else
-      crpsBMA <- NULL
-    if(options$forecastMetricsDSS)
-      dssBMA <- c(NA,NA)
-    else
-      dssBMA <- NULL
-
-    if(options$forecastMetricsPR | options$forecastMetricsAUC){
-      outOfBoundBMA <- ensembleBMA::cdf(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,values = c(upperLimit,lowerLimit))
-      outOfBoundBMA[,1] <- 1-outOfBoundBMA[,1]
-      outOfBoundUpper <- cbind(outOfBoundUpper,BMA = c(rep(NA,length(indexMetrics)),outOfBoundBMA[,1]))
-      outOfBoundLower <- cbind(outOfBoundLower,BMA = c(rep(NA,length(indexMetrics)),outOfBoundBMA[,2]))
-
-    }
-
-    bmaMetrics <- cbind(CRPS = crpsBMA,DSS = dssBMA,brierUp,brierLo)
-
-    scoringResultsMean <- rbind(scoringResultsMean,bmaMetrics)
-    rownames(scoringResultsMean)[rownames(scoringResultsMean)==""] <- c("ensemble","BMA")
-
-
-
-
-
-
-    #scoringResultsMean$brierUp <- c(scoringResultsMean$brierUp,brierBMA[1,3:4])
-    #scoringResultsMean$brierLo <- c(scoringResultsMean$brierLo,brierBMA[2,3:4])
-  }
-
 
   if(options$forecastMetricsAUC | options$forecastMetricsPR){
     #View(outOfBoundLower)
@@ -1254,7 +1210,82 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                      modnames = c(colnames(outOfBoundUpper))))
 
 
+    if(options$forecastMetricsAUC){
+      if(!jaspBase::isTryError(aucUpper)){
+        rocUpperScore <- subset(precrec::auc(aucUpper),curvetypes=="ROC")[,"aucs"]
+        scoringResultsMean$aucUp <- rocUpperScore
+      }
+      if(!jaspBase::isTryError(aucLower)){
+        rocLowerScore <- subset(precrec::auc(aucLower),curvetypes=="ROC")[,"aucs"]
+        scoringResultsMean$aucLo <- rocLowerScore
+      }
+    }
+    if(options$forecastMetricsPR){
+      if(!jaspBase::isTryError(aucUpper)){
+        prUpperScore <- subset(precrec::auc(aucUpper),curvetypes=="PRC")[,"aucs"]
+        scoringResultsMean$prUp <- prUpperScore
+      }
+      if(!jaspBase::isTryError(aucLower)){
+        prLowerScore <- subset(precrec::auc(aucLower),curvetypes=="PRC")[,"aucs"]
+        scoringResultsMean$prLo <- prLowerScore
 
+      }
+    }
+
+
+  }
+  View(scoringResultsMean)
+
+  if(!is.null(jaspResults[["predanResults"]][["predanBMAResults"]])){
+    fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+
+    bmaScores <- as.data.frame(matrix(NA,nrow = 2),row.names = c("ensemble","BMA"))
+    if(options$forecastMetricsBrier){
+      brierBMA <- ensembleBMA::brierScore(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,thresholds = c(upperLimit,lowerLimit))[-2]
+      brierBMA <-  t(brierBMA)[2:3,1:2]
+      colnames(brierBMA) <- c("brierUp","brierLo")
+      bmaScores <- cbind(bmaScores,brierBMA)
+    }
+
+    if(options$forecastMetricsCRPS){
+      crpsBMA <- c(colMeans(ensembleBMA::crps(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame)))
+      bmaScores <- cbind(bmaScores,CRPS =crpsBMA)
+    }
+    if(options$forecastMetricsDSS) {
+      dssBMA <- c(NA,NA)
+      bmaScores <- cbind(bmaScores,DSS =dssBMA)
+    }
+    #else
+    #  dssBMA <- NULL
+
+
+
+    if(options$forecastMetricsPR | options$forecastMetricsAUC){
+      outOfBoundBMA <- ensembleBMA::cdf(fitBMAList$fitBMAObject,fitBMAList$ensembleDataFrame,values = c(upperLimit,lowerLimit))
+      outOfBoundBMA[,1] <- 1-outOfBoundBMA[,1]
+      outOfBoundUpperBMA <- outOfBoundBMA[,1]
+      outOfBoundLowerBMA <- outOfBoundBMA[,2]
+
+      try({
+
+        print(indexMetrics)
+        print(yUpper)
+        curvesUpper <- precrec::evalmod(scores=outOfBoundUpperBMA,
+                                        labels = yUpper[as.numeric(rownames(outOfBoundBMA))])
+        curvesUpper <- attr(curvesUpper,"aucs")$aucs
+        bmaScores[2,c("aucUp","prUp")] <- curvesUpper
+      })
+
+      try({
+        curvesLower <- precrec::evalmod(scores=outOfBoundLowerBMA,
+                                        labels = yLower[as.numeric(rownames(outOfBoundBMA))])
+        curvesLower <- attr(curvesLower,"aucs")$aucs
+        bmaScores[2,c("aucLo","prLo")] <- curvesLower
+      })
+
+    }
+    View(bmaScores)
+    scoringResultsMean <- rbind(scoringResultsMean,bmaScores[,colnames(bmaScores) %in% colnames(scoringResultsMean)])
   }
 
 
@@ -1272,43 +1303,14 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     forecastMetricTable[["brierLo"]] <- scoringResultsMean$brierLo
   }
 
-
   if(options$forecastMetricsAUC){
-    if(!jaspBase::isTryError(aucUpper)){
-    rocUpperScore <- subset(precrec::auc(aucUpper),curvetypes=="ROC")[,"aucs"]
-    if("BMA" %in% colnames(outOfBoundLower)) rocUpperScore <- c(rocUpperScore[1:2],NA,rocUpperScore[3])
-    names(rocUpperScore) <- rownames(scoringResultsMean)
-    forecastMetricTable[["aucUp"]] <- rocUpperScore
-    scoringResultsMean$aucUp <- rocUpperScore
-    }
-    if(!jaspBase::isTryError(aucLower)){
-    rocLowerScore <- subset(precrec::auc(aucLower),curvetypes=="ROC")[,"aucs"]
-    if("BMA" %in% colnames(outOfBoundLower)) rocLowerScore <- c(rocLowerScore[1:2],NA,rocLowerScore[3])
-    names(rocLowerScore) <- rownames(scoringResultsMean)
-    forecastMetricTable[["aucLo"]] <- rocLowerScore
-    scoringResultsMean$aucLo <- rocLowerScore
-    }
+    try(forecastMetricTable[["aucLo"]] <- scoringResultsMean$aucLo)
+    try(forecastMetricTable[["aucLo"]] <- scoringResultsMean$aucUp)
   }
-
   if(options$forecastMetricsPR){
-    if(!jaspBase::isTryError(aucUpper)){
-      prUpperScore <- subset(precrec::auc(aucUpper),curvetypes=="PRC")[,"aucs"]
-      if("BMA" %in% colnames(outOfBoundLower)) prUpperScore <- c(prUpperScore[1:2],NA,prUpperScore[3])
-      names(prUpperScore) <- rownames(scoringResultsMean)
-
-      forecastMetricTable[["prUp"]] <- prUpperScore
-      scoringResultsMean$prUp <- prUpperScore
-    }
-    if(!jaspBase::isTryError(aucLower)){
-      prLowerScore <- subset(precrec::auc(aucLower),curvetypes=="PRC")[,"aucs"]
-      if("BMA" %in% colnames(outOfBoundLower)) prLowerScore <- c(prLowerScore[1:2],NA,prLowerScore[3])
-      names(prLowerScore) <- rownames(scoringResultsMean)
-      forecastMetricTable[["prLo"]] <- prLowerScore
-      scoringResultsMean$prLo <- prLowerScore
-
-    }
+    try(forecastMetricTable[["prLo"]] <- scoringResultsMean$prLo)
+    try(forecastMetricTable[["prUp"]] <- scoringResultsMean$prUp)
   }
-
 
 
   return(scoringResultsMean)
@@ -1479,6 +1481,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
      (is.null(jaspResults[["predanResults"]][["predanForecastVerificationModels"]]) & is.null(jaspResults[["predanResults"]][["predanBMAResults"]]))) return()
 
 
+  futurePredictionContainer <- createJaspContainer("Future Predictions")
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
   modelListForecast <-  jaspResults[["predanResults"]][["predanForecastVerificationModels"]]$object
 
@@ -1533,15 +1536,17 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   }
 
   if(options$checkBoxOutBoundProbabilities)
-    .futurePredictionsProbabilityTable(jaspResults,controlData,futurePredictions,selectedModel)
+    .futurePredictionsProbabilityTable(futurePredictionContainer,jaspResults,controlData,futurePredictions,selectedModel)
 
   if(options$checkBoxOutBoundPlot)
-    .futurePredictionPlot(jaspResults,controlData,futurePredictions,options,plotLimits,limits,selectedModel)
+    .futurePredictionPlot(futurePredictionContainer,jaspResults,controlData,futurePredictions,options,plotLimits,limits,selectedModel)
 
+
+  jaspResults[["predanMainContainer"]] <- futurePredictionContainer
 
 }
 
-.futurePredictionsProbabilityTable <- function(jaspResults,controlData,futurePredictions,selectedModel){
+.futurePredictionsProbabilityTable <- function(futurePredictionContainer,jaspResults,controlData,futurePredictions,selectedModel){
 
   futurePredictions <- futurePredictions[futurePredictions$model==selectedModel,]
 
@@ -1569,13 +1574,13 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   outBoundTable[["upperProb"]] <- futurePredictions$upperProb
   outBoundTable[["lowerProb"]] <- futurePredictions$lowerProb
 
-  jaspResults[["predanMainContainer"]][["outBoundTable"]] <- outBoundTable
+  futurePredictionContainer[["outBoundTable"]] <- outBoundTable
 
   return()
 }
 
 
-.futurePredictionPlot <- function(jaspResults,controlData,futurePredictions,options,plotLimits,limits,selectedModel){
+.futurePredictionPlot <- function(futurePredictionContainer,jaspResults,controlData,futurePredictions,options,plotLimits,limits,selectedModel){
   futurePredictionPlot <- createJaspPlot(title = paste0("Future Predictions - ",selectedModel), height = 320,width = 480)
   futurePredictions <- futurePredictions[futurePredictions$model==selectedModel,]
   futurePredictions$time <- futurePredictions$time+ nrow(controlData)
@@ -1607,7 +1612,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   futurePredictionPlot$plotObject <- p
 
-  jaspResults[["predanMainContainer"]][["futurePredictionPlot"]] <- futurePredictionPlot
+  futurePredictionContainer <- futurePredictionPlot
 
   return()
 
