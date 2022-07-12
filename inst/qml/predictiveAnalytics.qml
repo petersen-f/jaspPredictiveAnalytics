@@ -232,32 +232,32 @@ Form
 		//}
 	}
 
-	Section
-	{
-		title: qsTr("Full Data Prediction")
-
-		CheckBox
-		{
-			name: "controlPredictionCheck"
-
-			label: "Control Prediction"
-
-			Group
-			{
-				title: "Model Period"
-				columns: 2
-				IntegerField{name: "controlPredictionStart";label: "Start"}
-				IntegerField{name: "controlPredictionEnd";label: "End"}
-			}
-
-			IntegerField{name: "controlPredictionHorizon";label: "Prediction Horizon"}
-			IntegerField{name: "predDraws"; label: "Niter"}
-			CheckBox{name:"controlPredictionFocus"; label: "Focus on all available data"}
-
-
-
-		}
-	}
+	//Section
+	//{
+	//	title: qsTr("Full Data Prediction")
+//
+	//	CheckBox
+	//	{
+	//		name: "controlPredictionCheck"
+//
+	//		label: "Control Prediction"
+//
+	//		Group
+	//		{
+	//			title: "Model Period"
+	//			columns: 2
+	//			IntegerField{name: "controlPredictionStart";label: "Start"}
+	//			IntegerField{name: "controlPredictionEnd";label: "End"}
+	//		}
+//
+	//		IntegerField{name: "controlPredictionHorizon";label: "Prediction Horizon"}
+	//		IntegerField{name: "predDraws"; label: "Niter"}
+	//		CheckBox{name:"controlPredictionFocus"; label: "Focus on all available data"}
+//
+//
+//
+	//	}
+	//}
 
 	Section
 
@@ -266,28 +266,28 @@ Form
 		{
 			Layout.columnSpan: 1
 	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
-			IntegerField{name: "forecastVerificationModelWindow";label: "Model Window";defaultValue: 30 ;min: 0}
+			IntegerField{name: "forecastVerificationModelWindow";label: "Sliding window";defaultValue: 30 ;min: 0}
 
 		}
 		Group
 		{
 			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:10;min: 10}
 
-			IntegerField{name: "forecastVerificationModelHistory";label: "Model History";defaultValue:200;min: 0}
+			IntegerField{name: "forecastVerificationModelHistory";label: "Model history";defaultValue:200;min: 0}
 
 
 		}
-		title: qsTr("Forecast verification")
+		title: qsTr("Forecast Verification")
 
 		Group
 		{
 			title: qsTr("Model Selection")
-			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - Running Variance"}
-			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - Running Variance & Mean"}
-			CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - Local Level Model"}
-			CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - Linear Trend Model"}
-			CheckBox{name:"forecastModelBstsArCheck";label: "bsts - Autoregressive Model"}
-			CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - Semi Local Trend Model"}
+			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running Variance"}
+			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running Variance & Mean"}
+			CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - local level model"}
+			CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - linear trend model"}
+			CheckBox{name:"forecastModelBstsArCheck";label: "bsts - autoregressive model"}
+			CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - semi local trend model"}
 
 
 		}
@@ -299,10 +299,10 @@ Form
 			//CheckBox{name:"forecastMetricsLog";label: "Logarithmic score";checked:true}
 			CheckBox{name:"forecastMetricsCRPS";label: "Continuous ranked probability score";checked:true}
 			CheckBox{name:"forecastMetricsDSS";label: "Dawid-Sebastiani score";checked:true}
-			CheckBox{name:"forecastMetricsAUC";label: "Receiver Operator Characteristics";checked:true}
-			CheckBox{name:"forecastMetricsPR";label: "Precision-Recall score";checked:true}
+			CheckBox{name:"forecastMetricsAUC";label: "Receiver operator Characteristics";checked:true}
+			CheckBox{name:"forecastMetricsPR";label: "Precision-recall score";checked:true}
 			CheckBox{name:"forecastMetricsBrier";label: "Brier score";checked:true}
-			//CheckBox{name:"forecastMetricsRSME";label: "Root Mean Squared Error"}
+			//CheckBox{name:"forecastMetricsRSME";label: "Root mean squared error"}
 
 
 		}
@@ -326,34 +326,36 @@ Form
   			//	]
 			//}
 			CheckBox{name: "checkBMA";label: "Perform BMA";id: bmaEnabled}
-			IntegerField{name: "BMAtrainingPeriod"}
+			//IntegerField{name: "BMAtrainingPeriod"}
+			CheckBox{name: "checkBMATrainingPlot"; label: "Show averaged predictions"; enabled:bmaEnabled.checked}
 
 		}
 
 		Group
 		{
 			title: qsTr("Model weights")
+			enabled:bmaEnabled.checked
 
 		CheckBox{name: "checkBMAmodelWeights"; label: "Show table"}
 		CheckBox
 		{
 			name: "checkmodelWeightsPlot"
 			label: qsTr("Plot weights over time")
-			IntegerField{name: "modelWeightRunningWindow";label: qsTr("Running average window:");min: 1;defaultValue:1}
+			IntegerField{name: "modelWeightRunningWindow";label: qsTr("Running mean window:");min: 1;defaultValue:1}
 
 
 		}
 	}
-		CheckBox{name: "checkBMATrainingPlot"; label: "Show averaged predictions"}
-		Group{
 
-			title: "Future Predictions"
-
-			CheckBox{name: "checkFuturePredictionPlot"; label: "Future prediction plot"}
-			CheckBox{name: "checkFuturePredictionTable"; label: "Future out-of-bound probability"}
-
-
-		}
+		//Group{
+//
+		//	title: "Future Predictions"
+//
+		//	CheckBox{name: "checkFuturePredictionPlot"; label: "Future prediction plot"}
+		//	CheckBox{name: "checkFuturePredictionTable"; label: "Future out-of-bound probability"}
+//
+//
+		//}
 	}
 
 	Section
@@ -368,27 +370,28 @@ Form
 			label: qsTr("Predictions")
 
 
-			IntegerField{name: "futurePredictions"; label: qsTr("Number of time points");min:1}
+			IntegerField{name: "futurePredictions"; label: qsTr("Number of time points");min:1;defaultValue:10}
 
-			
-				
+
+
 			RadioButtonGroup
 			{
 				title: qsTr("Model choice")
 				name: "predictionModelChoice"
 				radioButtonsOnSameRow: false
-				RadioButton 
-				{ 
+				RadioButton
+				{
 					value: "forecastBMA"
 					label: qsTr("BMA model")
-					enabled: bmaEnabled.checked 
-					IntegerField{name: "modelWeightWindow"; label: qsTr("Model weight window")}
+					enabled: bmaEnabled.checked
+					IntegerField{name: "modelWeightWindow"; label: qsTr("Model weight window");defaultValue: 10; min: 10}
 				}
-				RadioButton 
+				RadioButton
 				{
 					childrenOnSameRow: true
 					value: "forecastBestModel"
-					label: qsTr("Best model based on") 	
+					label: qsTr("Best model based on")
+					checked: !bmaEnabled.checked
 					DropDown
 					{
 						name: "forecastModelSelectionMetric"
@@ -400,7 +403,7 @@ Form
 							{ value: "roc", 	label: "modelSelectionROC"},
 							{ value: "pr", 		label: "modelSelectionPR"},
 							{ value: "brier", 	label: "modelSelectionBrier"}
-							
+
   						]
 					}
 
@@ -408,7 +411,7 @@ Form
 
 
 
-					
+
 
 
 
@@ -424,7 +427,7 @@ Form
 		{
 		CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
 
-		
+
 		CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
 
 
