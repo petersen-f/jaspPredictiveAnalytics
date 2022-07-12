@@ -103,7 +103,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   left <- c(signChanges, FALSE)
   right <- c(FALSE, signChanges)
   t <- (limit - y[left])/(y[right] - y[left])
-  x2 <- (1 - t)*time[left] + (1-t)*time[right]
+  x2 <- (1 - t)*time[left] + t*time[right]
 
   if(length(x2 ) > 0)
     return(data.frame(y=limit,time  = x2, include=0,outBound=T))
@@ -303,55 +303,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 }
 
-.bmaFuturePrediction <- function(fitBMAObject, modelListFuturePredictions,weightWindow){
-  modelWeights <- rowMeans(tail(fitBMAObject$weights,weightWindow))
-  aWeights <- colMeans(tail(t(fitBMAObject$biasCoefs[1,,]),weightWindow))
-  bWeights <- colMeans(tail(t(fitBMAObject$biasCoefs[2,,]),weightWindow))
 
-  #modelMatrixFuturePredictions <- array(as.numeric(unlist(modelListFuturePredictions)), dim=c(dim(modelListFuturePredictions[[1]]), length(modelListFuturePredictions)))
-  biasCorrectedPredictionList<- lapply(X=1:length(modelListFuturePredictions),FUN = function(x) aWeights[x]+bWeights[x]*modelListFuturePredictions[[x]])
-  names(biasCorrectedPredictionList) <- names(modelListFuturePredictions)
-  #biasCorrectedPrediction <- apply(X=modelMatrixFuturePredictions,MARGIN =c(1,3) ,FUN = function(x) aWeights+bWeights*x)
-  weightedPredictions <- lapply(X=1:length(modelListFuturePredictions), FUN = function(x) biasCorrectedPredictionList[[x]] * modelWeights[x])
-
-  # no bias correction
-  #weightedPredictions <- lapply(X=1:length(modelListFuturePredictions), FUN = function(x) modelListFuturePredictions[[x]] * modelWeights[x])
-
-  #meansPredsWeight <- data.frame(trend = colMeans(biasCorrectedPredictionList[[1]]),
-  #                               local = colMeans(biasCorrectedPredictionList[[2]]),
-  #                               weightedPredictions = rowSums(sapply(weightedPredictions,colMeans)))
-
-  # sumPred <- biasCorrectedPredictionList %>% reshape2::melt() %>% mutate(L1 =factor(L1,labels  = names(modelListFuturePredictions))) %>%
-  #   rename(#model = Var1,
-  #          draw = Var1,
-  #          time = Var2,
-  #          model = L1) %>%
-  #   bind_rows(reshape2::melt(Reduce("+",weightedPredictions)) %>% mutate(model="BMA") %>% rename(draw=Var1,time=Var2)) %>%
-  #   group_by(model,time) %>% summarise(mean= mean(value),
-  #                                      lowerCI = quantile(value,0.025),
-  #                                      higherCI = quantile(value,0.975))
-  #
-  #sumPred2 <- lapply(X =1:3, function(x) data.frame(draw=c(row(biasCorrectedPredictionList[[x]])),
-  #                                                  time=c(col(biasCorrectedPredictionList[[x]])),
-  #                                                  state=c(biasCorrectedPredictionList[[x]]),
-  #                                                  name = names(biasCorrectedPredictionList)[x]))
-
-  sumPred2 <- lapply(biasCorrectedPredictionList, .extractQuantiles)
-  sumPred2 <- lapply(X=1:3, function(x) cbind(sumPred2[[x]],model= names(biasCorrectedPredictionList)[x]))
-
-
-  mergedPred <- .extractQuantiles(Reduce("+",weightedPredictions))
-  mergedPred$model = "BMA"
-  #sumPredBMA <- data.frame(draw=c(row(mergedPred)),time=c(col(mergedPred)), state=c(mergedPred),model = "BMA")
-  #names(sumPred2) <- names(biasCorrectedPredictionList)
-  sumPred2 <- do.call("rbind", sumPred2)
-  sumPred2 <- rbind(sumPred2,mergedPred)
-
-  p <- sumPred2 %>% ggplot(aes(time,mean) )+ geom_line(aes(col=model)) +
-    geom_ribbon(data=sumPred2 %>% filter(model=="BMA"),aes(ymin=lowerCI,ymax=higherCI),fill="blue",alpha=0.2) + theme_bw()
-
-  return(p)
-}
 
 
 
@@ -416,10 +368,6 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
-
-
-
-
 ##### dependencies
 .boundDependencies <- function(){
   return(c("dependent","errorBoundMethodDrop",
@@ -445,6 +393,16 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
              "forecastModelBstsSemiLocalCheck",
              "forecastVerificationModelWindow",
              "forecastVerificationDraws"))
+}
+
+
+
+.forecastMetricDependencies <- function(){
+  return(c("forecastMetricsCRPS",
+           "forecastMetricsDSS",
+           "forecastMetricsAUC",
+           "forecastMetricsPR",
+           "forecastMetricsBrier"))
 }
 
 
@@ -1130,8 +1088,11 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   if(!ready || is.null(jaspResults[["predanResults"]][["predanForecastVerificationModels"]])) return()
 
   forecastMetricTable <- createJaspTable(title = "Forecast Verification Metrics Table")
+  forecastMetricData <- createJaspState()
 
-  forecastMetricTable$dependOn(c("forecastMetricsLog","forecastMetricsCRPS","forecastMetricsDSS"))
+  forecastMetricTable$dependOn(.forecastMetricDependencies())
+  forecastMetricData$dependOn(.forecastMetricDependencies())
+
   modelListForecast <-  jaspResults[["predanResults"]][["predanForecastVerificationModels"]]$object
 
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
@@ -1170,11 +1131,11 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   }
 
-  .predanForecastVerificationModelsTableFill(y,controlData,jaspResults,forecastMetricTable,modelListForecast,options)
+  forecastMetricData$object <- .predanForecastVerificationModelsTableFill(y,controlData,jaspResults,forecastMetricTable,modelListForecast,options)
 
 
   jaspResults[["predanMainContainer"]][["forecastMetricTable"]] <- forecastMetricTable
-
+  jaspResults[["predanResults"]][["forecastMetricData"]] <- forecastMetricData
 
   return()
 
@@ -1318,12 +1279,14 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     if("BMA" %in% colnames(outOfBoundLower)) rocUpperScore <- c(rocUpperScore[1:2],NA,rocUpperScore[3])
     names(rocUpperScore) <- rownames(scoringResultsMean)
     forecastMetricTable[["aucUp"]] <- rocUpperScore
+    scoringResultsMean$aucUp <- rocUpperScore
     }
     if(!jaspBase::isTryError(aucLower)){
     rocLowerScore <- subset(precrec::auc(aucLower),curvetypes=="ROC")[,"aucs"]
     if("BMA" %in% colnames(outOfBoundLower)) rocLowerScore <- c(rocLowerScore[1:2],NA,rocLowerScore[3])
     names(rocLowerScore) <- rownames(scoringResultsMean)
     forecastMetricTable[["aucLo"]] <- rocLowerScore
+    scoringResultsMean$aucLo <- rocLowerScore
     }
   }
 
@@ -1334,22 +1297,21 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
       names(prUpperScore) <- rownames(scoringResultsMean)
 
       forecastMetricTable[["prUp"]] <- prUpperScore
+      scoringResultsMean$prUp <- prUpperScore
     }
     if(!jaspBase::isTryError(aucLower)){
       prLowerScore <- subset(precrec::auc(aucLower),curvetypes=="PRC")[,"aucs"]
       if("BMA" %in% colnames(outOfBoundLower)) prLowerScore <- c(prLowerScore[1:2],NA,prLowerScore[3])
       names(prLowerScore) <- rownames(scoringResultsMean)
       forecastMetricTable[["prLo"]] <- prLowerScore
+      scoringResultsMean$prLo <- prLowerScore
+
     }
   }
 
 
 
-
-  print(forecastMetricTable[["CRPS"]])
-
-
-  return()
+  return(scoringResultsMean)
 
 }
 
@@ -1513,14 +1475,14 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 .predanFuturePredictionHelper <- function(jaspResults,dataset,options,ready){
-  if(!ready| !is.null(jaspResults[["predanResults"]][["predanFutureForecast"]])|!options$checkBoxFuturePredictions|is.null(jaspResults[["predanResults"]][["predanBMAResults"]])) return()
-  fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+  if(!ready| !is.null(jaspResults[["predanResults"]][["predanFutureForecast"]])|!options$checkBoxFuturePredictions|
+     (is.null(jaspResults[["predanResults"]][["predanForecastVerificationModels"]]) & is.null(jaspResults[["predanResults"]][["predanBMAResults"]]))) return()
 
-  fitBMAObject <- fitBMAList$fitBMAObject
-  fitBMAData <- fitBMAList$ensembleDataFrame
 
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
   modelListForecast <-  jaspResults[["predanResults"]][["predanForecastVerificationModels"]]$object
+
+  forecastMetricData <- jaspResults[["predanResults"]][["forecastMetricData"]]$object
 
   controlData <- predanResults[[1]]
   upperLimit <- predanResults[[2]]
@@ -1535,25 +1497,54 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                                        niter = 500,modelWindow = 0,
                                                        modelsToCalculate = names(modelListForecast))
 
+  if(options$predictionModelChoice == "forecastBMA"){
 
-  bmaFuturePredictions <- .bmaFuturePrediction(fitBMAObject = fitBMAObject,
+  fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+
+  fitBMAObject <- fitBMAList$fitBMAObject
+  fitBMAData <- fitBMAList$ensembleDataFrame
+
+  futurePredictions <- .bmaFuturePrediction(fitBMAObject = fitBMAObject,
                                                modelListFuturePredictions = modelListFuturePredictions,
                                                weightWindow = options$modelWeightWindow,
                                                limits = c(upperLimit,lowerLimit))
+  selectedModel <- "BMA"
 
+  } else {
+    print(options$forecastModelSelectionMetric)
+    print(colnames(forecastMetricData))
+
+    metricMatch <- grepl(options$forecastModelSelectionMetric,colnames(forecastMetricData))
+    print(metricMatch)
+    if(all(!metricMatch))
+      stop(gettext("'Selection metric' must be one of the metrics calculated in the forecast verification section!" ))
+    orderColumns <- colnames(forecastMetricData)[metricMatch]
+    forecastMetricDataOrdered <- forecastMetricData[orderColumns]
+    selectedModel <-  rownames(forecastMetricDataOrdered)[with(forecastMetricDataOrdered,order(forecastMetricDataOrdered))][1]
+
+    futurePredictions <- modelListFuturePredictions[[selectedModel]]
+
+
+
+    futurePredictions <- cbind(upperProb = 1- quantInvVec(t(futurePredictions),upperLimit),
+                                lowerProb = quantInvVec(t(futurePredictions),lowerLimit),
+                                .extractQuantiles(futurePredictions),
+                                model = selectedModel)
+  }
 
   if(options$checkBoxOutBoundProbabilities)
-    .futurePredictionsProbabilityTable(controlData,bmaFuturePredictions)
+    .futurePredictionsProbabilityTable(controlData,futurePredictions,selectedModel)
 
   if(options$checkBoxOutBoundPlot)
-    .futurePredictionPlot(controlData,bmaFuturePredictions,options,plotLimits,limits)
+    .futurePredictionPlot(controlData,futurePredictions,options,plotLimits,limits,selectedModel)
 
 
 }
 
-.futurePredictionsProbabilityTable <- function(controlData,bmaFuturePredictions){
+.futurePredictionsProbabilityTable <- function(controlData,futurePredictions,selectedModel){
 
-  bmaFuturePredictions <- bmaFuturePredictions[bmaFuturePredictions$model=="BMA",]
+  futurePredictions <- futurePredictions[futurePredictions$model==selectedModel,]
+
   outBoundTable <- createJaspTable(title= "Future out-of-bound probabilities")
 
   outBoundTable$addColumnInfo(name= "time", title = "Time point", type = "integer")
@@ -1570,13 +1561,13 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                     overtitle = "Out-of-bound Probability",format = "sf:4;dp:3")
 
 
-  outBoundTable[["time"]] <- bmaFuturePredictions$time + nrow(controlData)
-  outBoundTable[["value"]] <- bmaFuturePredictions$mean
-  outBoundTable[["upperPred"]] <- bmaFuturePredictions$higherCI
-  outBoundTable[["lowerPred"]] <- bmaFuturePredictions$lowerCI
+  outBoundTable[["time"]] <- futurePredictions$time + nrow(controlData)
+  outBoundTable[["value"]] <- futurePredictions$mean
+  outBoundTable[["upperPred"]] <- futurePredictions$higherCI
+  outBoundTable[["lowerPred"]] <- futurePredictions$lowerCI
 
-  outBoundTable[["upperProb"]] <- bmaFuturePredictions$upperProb
-  outBoundTable[["lowerProb"]] <- bmaFuturePredictions$lowerProb
+  outBoundTable[["upperProb"]] <- futurePredictions$upperProb
+  outBoundTable[["lowerProb"]] <- futurePredictions$lowerProb
 
   jaspResults[["predanMainContainer"]][["outBoundTable"]] <- outBoundTable
 
@@ -1584,10 +1575,10 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 }
 
 
-.futurePredictionPlot <- function(controlData,bmaFuturePredictions,options,plotLimits,limits){
-  futurePredictionPlot <- createJaspPlot(title = "Future Predictions", height = 320,width = 480)
-  bmaFuturePredictions <- bmaFuturePredictions[bmaFuturePredictions$model=="BMA",]
-  bmaFuturePredictions$time <- bmaFuturePredictions$time+ nrow(controlData)
+.futurePredictionPlot <- function(controlData,futurePredictions,options,plotLimits,limits,selectedModel){
+  futurePredictionPlot <- createJaspPlot(title = paste0("Future Predictions - ",selectedModel), height = 320,width = 480)
+  futurePredictions <- futurePredictions[futurePredictions$model==selectedModel,]
+  futurePredictions$time <- futurePredictions$time+ nrow(controlData)
 
   #if(options$forecastVerificationModelHistory>0)
   #  controlDataPlot <- tail(controlData,options$forecastVerificationModelHistory)
@@ -1599,8 +1590,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                higherCI = NA,
                                lowerCI = NA,
                                mean= NA)
-  bmaFuturePredictions$y <- NA
-  predictionData <- rbind(predictionData,bmaFuturePredictions[c("mean","y","time","higherCI","lowerCI")])
+  futurePredictions$y <- NA
+  predictionData <- rbind(predictionData,futurePredictions[c("mean","y","time","higherCI","lowerCI")])
 
 
   p <- ggplot2::ggplot(predictionData,ggplot2::aes(time,y)) + ggplot2::geom_line() +

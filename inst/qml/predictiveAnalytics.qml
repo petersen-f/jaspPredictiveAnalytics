@@ -368,7 +368,7 @@ Form
 			label: qsTr("Predictions")
 
 
-			IntegerField{name: "futurePredictions"; label: qsTr("Number of time points")}
+			IntegerField{name: "futurePredictions"; label: qsTr("Number of time points");min:1}
 
 			
 				
@@ -395,11 +395,11 @@ Form
 						id: metricSelection
 						values:
  						[
-    						{ label: "CRPS", value: "modelSelectionCRPS"},
-    						{ label: "DSS", value: "modelSelectionDSS"},
-							{ label: "ROC", value: "modelSelectionROC"},
-							{ label: "PR", value: "modelSelectionPR"},
-							{ label: "Brier", value: "modelSelectionBrier"}
+    						{ value: "CRPS", 	label: "modelSelectionCRPS"},
+    						{ value: "DSS", 	label: "modelSelectionDSS"},
+							{ value: "roc", 	label: "modelSelectionROC"},
+							{ value: "pr", 		label: "modelSelectionPR"},
+							{ value: "brier", 	label: "modelSelectionBrier"}
 							
   						]
 					}
@@ -425,7 +425,7 @@ Form
 		CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
 
 		
-		CheckBox{name: "checkBoxOutBoundProbabilitiesPlot"; label: "Future data predictions"}
+		CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
 
 
 		}
