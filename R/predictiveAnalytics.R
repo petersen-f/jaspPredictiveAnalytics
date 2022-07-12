@@ -1533,15 +1533,15 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   }
 
   if(options$checkBoxOutBoundProbabilities)
-    .futurePredictionsProbabilityTable(controlData,futurePredictions,selectedModel)
+    .futurePredictionsProbabilityTable(jaspResults,controlData,futurePredictions,selectedModel)
 
   if(options$checkBoxOutBoundPlot)
-    .futurePredictionPlot(controlData,futurePredictions,options,plotLimits,limits,selectedModel)
+    .futurePredictionPlot(jaspResults,controlData,futurePredictions,options,plotLimits,limits,selectedModel)
 
 
 }
 
-.futurePredictionsProbabilityTable <- function(controlData,futurePredictions,selectedModel){
+.futurePredictionsProbabilityTable <- function(jaspResults,controlData,futurePredictions,selectedModel){
 
   futurePredictions <- futurePredictions[futurePredictions$model==selectedModel,]
 
@@ -1575,7 +1575,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 }
 
 
-.futurePredictionPlot <- function(controlData,futurePredictions,options,plotLimits,limits,selectedModel){
+.futurePredictionPlot <- function(jaspResults,controlData,futurePredictions,options,plotLimits,limits,selectedModel){
   futurePredictionPlot <- createJaspPlot(title = paste0("Future Predictions - ",selectedModel), height = 320,width = 480)
   futurePredictions <- futurePredictions[futurePredictions$model==selectedModel,]
   futurePredictions$time <- futurePredictions$time+ nrow(controlData)
