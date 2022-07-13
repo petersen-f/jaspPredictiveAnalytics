@@ -1627,5 +1627,3 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   return()
 
 }
-
-
