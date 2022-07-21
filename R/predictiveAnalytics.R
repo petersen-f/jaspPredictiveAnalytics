@@ -1529,10 +1529,13 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   quantilesBMA$time <- trainingIndex
 
   xBreaks <- pretty(quantilesBMA$time)
-  yBreaks <- pretty(quantilesBMA$median)
-  p <- ggplot2::ggplot(data = quantilesBMA,mapping =  ggplot2::aes(x=time,y=median)) +
+  yBreaks <- yBreaks <- pretty(c(min(quantilesBMA$lowerCI), max(quantilesBMA$higherCI)))
+
+  p <- ggplot2::ggplot(data = quantilesBMA,mapping = ggplot2::aes(x=time,y=median)) +
     ggplot2::geom_line(col="red") + ggplot2::geom_line(ggplot2::aes(y=lowerCI))  +
-    ggplot2::geom_line(ggplot2::aes(y=higherCI)) + ggplot2::geom_point(ggplot2::aes(y=actual)) + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
+    ggplot2::geom_line(ggplot2::aes(y=higherCI)) + ggplot2::geom_point(ggplot2::aes(y=actual)) +
+    jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
+
     ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
     ggplot2::scale_y_continuous(breaks = yBreaks,limits = range(yBreaks)) +
     ggplot2::scale_x_continuous(breaks = xBreaks,limits = range(xBreaks)) +

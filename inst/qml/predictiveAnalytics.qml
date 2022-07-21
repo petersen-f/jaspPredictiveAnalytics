@@ -247,15 +247,7 @@ Form
 
 
 		}
-		Group
-		{
-			Layout.columnSpan: 1
-	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
-			IntegerField{name: "forecastVerificationModelWindow";label: "Sliding window";defaultValue: 30 ;min: 0}
-			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:10;min: 10}
-			IntegerField{name: "forecastVerificationModelHistory";label: "Model history";defaultValue:200;min: 0}
 
-		}
 	}
 
 	Section
@@ -266,6 +258,15 @@ Form
 
 		title: qsTr("Forecast Verification")
 
+		Group
+		{
+			Layout.columnSpan: 1
+	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
+			IntegerField{name: "forecastVerificationModelWindow";label: "Sliding window";defaultValue: 30 ;min: 0}
+			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:10;min: 10}
+			IntegerField{name: "forecastVerificationModelHistory";label: "Model history";defaultValue:200;min: 0}
+
+		}
 
 
 		Group
