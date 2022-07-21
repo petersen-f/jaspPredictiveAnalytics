@@ -547,14 +547,18 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   }
 
+  xBreaks <- pretty(plotData$time)
+  yBreaks <- pretty(plotData$y)
 
 
 
     predanControlPlot <- createJaspPlot(title= title, height = 320, width = 480)
     p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(time,y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
-      ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred")+
-      ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred")+
-      ggplot2::scale_color_manual(guide="none",values=c("#4E84C4","#D16103"))
+      ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred") +
+      ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred") +
+      ggplot2::scale_color_manual(guide="none",values=c("#4E84C4","#D16103")) +
+      ggplot2::scale_y_continuous(name = "y",breaks = yBreaks,limits = range(yBreaks)) +
+      ggplot2::scale_x_continuous("time",breaks = xBreaks,limits = range(xBreaks))
 
 
   if(options$controlLineType %in% c("line","both"))
@@ -566,7 +570,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     p <- p + ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
                                              plotLimit[[1]]))
 
-  p <- p + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid)
+  p <- p + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
+    ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
 
   predanControlPlot$plotObject <- p
   #jaspResults[["testPlot"]] <- predanControlPlot
@@ -897,12 +902,20 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   predanBinaryControlStateSpacePlot <- createJaspPlot(title= "Binary state space plot", height = 320, width = 480)
 
   results <- .extractState(tsModel,T)
+
+  xBreaks <- pretty(results$time)
+
   p <- ggplot2::ggplot(results,ggplot2::aes(x=time,y=mean)) +
     ggplot2::geom_ribbon(mapping=ggplot2::aes(ymin=lowerCI,ymax =higherCI),
                          fill ="blue",alpha=0.5) + ggplot2::xlab("Time") +
     ggplot2::ylab("Distribution") +
-    ggplot2::geom_line(size=0.7)  + ggplot2::theme_classic() +
-    ggplot2::geom_point(ggplot2::aes(y=actualData),size=0.5)
+    ggplot2::geom_line(size=0.7) +
+    ggplot2::geom_point(ggplot2::aes(y=actualData),size=0.5) +
+    jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
+    ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
+    ggplot2::scale_x_continuous("Time",breaks = xBreaks,limits = range(xBreaks)) +
+    ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
+
 
   if(options$binaryControlOutPropLimit > 0)
     p <- p + ggplot2::geom_hline(yintercept = options$binaryControlOutPropLimit,linetype="dashed",color="darkred")
@@ -996,6 +1009,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   controlPredictionPlot <-  createJaspPlot(title= "Control Prediction", height = 320, width = 480)
 
+  xBreaks <- pretty(combinedPredictions$time)
+  yBreaks <- pretty(combinedPredictions$mean)
 
   p <- ggplot2::ggplot(combinedPredictions,ggplot2::aes(x = time,y=mean)) +
     ggplot2::geom_ribbon(mapping=ggplot2::aes(ymin=lowerCI,ymax =higherCI ),
@@ -1003,9 +1018,12 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     ggplot2::ylab("Distribution") +
     ggplot2::geom_line(size=0.7) +
     ggplot2::geom_point(ggplot2::aes(time,actualData),size=0.7) +
-    ggplot2::geom_vline(xintercept = options$controlPredictionEnd,linetype="dashed")
+    ggplot2::geom_vline(xintercept = options$controlPredictionEnd,linetype="dashed") +
+    ggplot2::scale_y_continuous(breaks = yBreaks,limits = range(yBreaks)) +
+    ggplot2::scale_x_continuous(breaks = xBreaks,limits = range(xBreaks))
 
-  p <- p + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid)
+  p <- p + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
+    ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
 
 
 
@@ -1432,10 +1450,16 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   trainingIndex <- as.numeric(rownames(quantilesBMA))
   quantilesBMA$actual = yModel[trainingIndex]
   quantilesBMA$time <- trainingIndex
+
+  xBreaks <- pretty(quantilesBMA$time)
+  yBreaks <- pretty(quantilesBMA$median)
   p <- ggplot2::ggplot(data = quantilesBMA,mapping =  ggplot2::aes(x=time,y=median)) +
     ggplot2::geom_line(col="red") + ggplot2::geom_line(ggplot2::aes(y=lowerCI))  +
     ggplot2::geom_line(ggplot2::aes(y=higherCI)) + ggplot2::geom_point(ggplot2::aes(y=actual)) + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
-    ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid)
+    ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
+    ggplot2::scale_y_continuous(breaks = yBreaks,limits = range(yBreaks)) +
+    ggplot2::scale_x_continuous(breaks = xBreaks,limits = range(xBreaks)) +
+    ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
 
   predanBMATrainingPlot$plotObject <- p
 
@@ -1608,6 +1632,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   futurePredictions$y <- NA
   predictionData <- rbind(predictionData,futurePredictions[c("mean","y","time","higherCI","lowerCI")])
 
+  xBreaks <- pretty(predictionData$time)
+  yBreaks <- pretty(predictionData$y)
 
   p <- ggplot2::ggplot(predictionData,ggplot2::aes(time,y)) + ggplot2::geom_line() +
     ggplot2::geom_line(ggplot2::aes(time,mean))+
@@ -1617,7 +1643,10 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
     ggplot2::coord_cartesian(ylim = rev(plotLimits)) +
     ggplot2::geom_hline(yintercept = limits[1],linetype="dashed",color="darkred") +
-    ggplot2::geom_hline(yintercept = limits[2],linetype="dashed",color="darkred")
+    ggplot2::geom_hline(yintercept = limits[2],linetype="dashed",color="darkred") +
+    ggplot2::scale_y_continuous(breaks = yBreaks,limits = range(yBreaks)) +
+    ggplot2::scale_x_continuous(breaks = xBreaks,limits = range(xBreaks)) +
+    ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
 
 
   futurePredictionPlot$plotObject <- p

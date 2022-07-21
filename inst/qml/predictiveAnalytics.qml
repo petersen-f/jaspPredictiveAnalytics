@@ -117,7 +117,9 @@ Form
 			{
 				name: "controlPlotCheck"
 				label: qsTr("Display control chart")
+				id: controlPlotCheckbox
 				RadioButtonGroup
+
             	{
                 	name: "controlLineType"
                 	radioButtonsOnSameRow: true
@@ -140,6 +142,7 @@ Form
 						name: "controlPlotZoomCheck"
 						label: qsTr("Custom Plot Focus")
 						childrenOnSameRow: false
+						enabled: controlPlotCheckbox.checked
 						// fix that end period is from start to nrow of series
 						Group
 						{
@@ -197,40 +200,7 @@ Form
 			}
 		}
 	}
-	Section
-	{
-		title: qsTr("Binary Control Analysis")
-		//Group
-		//{
-			CheckBox
-			{
-				name: "binaryControlChartCheck"
 
-				label: "Show binary control chart"
-
-				DropDown
-				{
-					name: "binaryControlMethod"
-					id: binaryMethodSelection
-					label: "Select Control Method"
-					values: ["state space", "rolling average"]
-
-				}
-
-				DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit")}
-				Group
-				{
-					visible: binaryMethodSelection.currentValue == "state space"
-					DoubleField
-					{
-						name: "binaryStateSpaceNiter"
-						label: qsTr("MCMC samples")
-						defaultValue: 500
-					}
-				}
-			}
-		//}
-	}
 
 	//Section
 	//{
@@ -433,6 +403,41 @@ Form
 
 		}
 
+	}
+
+	Section
+	{
+		title: qsTr("Binary Control Analysis")
+		//Group
+		//{
+			CheckBox
+			{
+				name: "binaryControlChartCheck"
+
+				label: "Show binary control chart"
+
+				DropDown
+				{
+					name: "binaryControlMethod"
+					id: binaryMethodSelection
+					label: "Select Control Method"
+					values: ["state space", "rolling average"]
+
+				}
+
+				DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit")}
+				Group
+				{
+					visible: binaryMethodSelection.currentValue == "state space"
+					DoubleField
+					{
+						name: "binaryStateSpaceNiter"
+						label: qsTr("MCMC samples")
+						defaultValue: 500
+					}
+				}
+			}
+		//}
 	}
 
 
