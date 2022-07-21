@@ -33,6 +33,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
     #.predanComputeControlPrediction(jaspResults,dataset,options,ready)
     #.predanControlPredictionChart(jaspResults,dataset,options,ready)
+    .predanModelSelectionFitHelper(jaspResults,dataset,options,ready)
     .predanForecastVerificationModelsHelper(jaspResults,dataset,options,ready)
     .predanForecastVerificationModelsTable(jaspResults,dataset,options,ready)
 
@@ -1042,6 +1043,82 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   controlPredictionPlot$plotObject <- p
 
   jaspResults[["predanMainContainer"]][["controlPredictionPlot"]] <- controlPredictionPlot
+  return()
+}
+
+
+
+.predanModelSelectionFitHelper <- function(jaspResults,dataset,options,ready){
+  if(!ready || !options$forecastModelBstsLocalLevelCheck) return()
+
+  predanModelSelectionFit <- createJaspState()
+  predanModelSelectionFit$dependOn(c("forecastModelBstsLocalLevelCheck",
+                                  "forecastModelBstsLinearTrendCheck",
+                                  "forecastModelBstsArCheck",
+                                  "forecastModelBstsSemiLocalCheck"))
+
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+  controlData <- predanResults[[1]]
+
+  y <- controlData$y
+
+
+  niter = 500
+  modelWindow = 500
+
+  if(modelWindow >0)
+    y <- tail(y,modelWindow)
+
+  modelFitList <- list()
+
+  modelsToCalculate <- unlist(options[c("forecastModelBstsLocalLevelCheck",
+                    "forecastModelBstsLinearTrendCheck",
+                    "forecastModelBstsArCheck",
+                    "forecastModelBstsSemiLocalCheck")])
+
+  modelsToCalculate <- c("bsts-local","bsts-trend","bsts-ar","bsts-semi")[modelsToCalculate]
+
+
+  #if(any(modelsToCalculate == "all"))
+  #  modelsToCalculate <- c("bsts-ar","bsts-local","bsts-trend" ,"bsts-semi", "baselineVar","baselineMean")
+
+  if("bsts-ar"     %in% modelsToCalculate)
+    try(modelFitList$"bsts-ar" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-ar"))
+
+  if("bsts-local"  %in% modelsToCalculate)
+    try(modelFitList$"bsts-local" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-local"))
+
+  if("bsts-trend"  %in% modelsToCalculate)
+    try(modelFitList$"bsts-trend" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-trend"))
+
+
+  if("bsts-semi"   %in% modelsToCalculate)
+    try(modelFitList$"bsts-semi" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-semi" ))
+
+
+  modelFitSummary <- lapply(modelFitList,summary)
+  modelFitSummary <- as.data.frame(do.call(rbind,modelFitSummary))
+
+  modelFitSummaryTable <- createJaspTable("Model Fit Summary Table")
+  modelFitSummaryTable$addColumnInfo(name= "Model", title = "", type = "string")
+
+  modelFitSummaryTable$addColumnInfo(name= "residual.sd", title = "Residual SD", type = "number")
+  modelFitSummaryTable$addColumnInfo(name= "prediction.sd", title = "Prediction SD", type = "number")
+  modelFitSummaryTable$addColumnInfo(name= "rsquare", title = gettextf("R%s", "\u00B2"), type = "number")
+  modelFitSummaryTable$addColumnInfo(name= "relative.gof",  title=gettext("Harvey's goodness of fit"),  type= "number")
+
+  modelFitSummaryTable[["Model"]] <- rownames(modelFitSummary)
+  modelFitSummaryTable[["residual.sd"]] <- modelFitSummary$residual.sd
+  modelFitSummaryTable[["prediction.sd"]] <- modelFitSummary$prediction.sd
+  modelFitSummaryTable[["rsquare"]] <- modelFitSummary$rsquare
+  modelFitSummaryTable[["relative.gof"]] <- modelFitSummary$relative.gof
+
+
+  predanModelSelectionFit$object <- modelFitList
+
+  jaspResults[["predanMainContainer"]][["modelFitTable"]] <- modelFitSummaryTable
+  jaspResults[["predanResults"]][["modelFitState"]] <- predanModelSelectionFit
+
   return()
 }
 
