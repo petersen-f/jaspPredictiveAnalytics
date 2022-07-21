@@ -229,29 +229,15 @@ Form
 	//	}
 	//}
 
+
 	Section
-
 	{
-		Group
-		{
-			Layout.columnSpan: 1
-	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
-			IntegerField{name: "forecastVerificationModelWindow";label: "Sliding window";defaultValue: 30 ;min: 0}
-
-		}
-		Group
-		{
-			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:10;min: 10}
-
-			IntegerField{name: "forecastVerificationModelHistory";label: "Model history";defaultValue:200;min: 0}
-
-
-		}
-		title: qsTr("Forecast Verification")
+		title: qsTr("Model Selection")
+		columns: 2
 
 		Group
 		{
-			title: qsTr("Model Selection")
+			//title: qsTr("Model Selection")
 			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running Variance"}
 			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running Variance & Mean"}
 			CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - local level model"}
@@ -261,6 +247,26 @@ Form
 
 
 		}
+		Group
+		{
+			Layout.columnSpan: 1
+	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
+			IntegerField{name: "forecastVerificationModelWindow";label: "Sliding window";defaultValue: 30 ;min: 0}
+			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:10;min: 10}
+			IntegerField{name: "forecastVerificationModelHistory";label: "Model history";defaultValue:200;min: 0}
+
+		}
+	}
+
+	Section
+
+	{
+		columns : 2
+
+
+		title: qsTr("Forecast Verification")
+
+
 
 		Group
 		{
@@ -269,7 +275,7 @@ Form
 			//CheckBox{name:"forecastMetricsLog";label: "Logarithmic score";checked:true}
 			CheckBox{name:"forecastMetricsCRPS";label: "Continuous ranked probability score";checked:true}
 			CheckBox{name:"forecastMetricsDSS";label: "Dawid-Sebastiani score";checked:true}
-			CheckBox{name:"forecastMetricsAUC";label: "Receiver operator Characteristics";checked:true}
+			CheckBox{name:"forecastMetricsAUC";label: "ROC";checked:true}
 			CheckBox{name:"forecastMetricsPR";label: "Precision-recall score";checked:true}
 			CheckBox{name:"forecastMetricsBrier";label: "Brier score";checked:true}
 			//CheckBox{name:"forecastMetricsRSME";label: "Root mean squared error"}
@@ -395,10 +401,9 @@ Form
 
 		Group
 		{
-		CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
-
-
-		CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
+			enabled: bmaEnabled.checked
+			CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
+			CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
 
 
 		}
