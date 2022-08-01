@@ -161,6 +161,21 @@ Form
 	Section
 	{
 		title: qsTr("Diagnostics")
+
+		columns: 2
+
+
+		Group
+		{
+			title: qsTr("Tables")
+
+		}
+
+		Group
+		{
+			title: qsTr("Plots")
+
+		}
 		CheckBox
 		{
 			name: "acfPlotCheck"
@@ -197,6 +212,7 @@ Form
 				name: "outlierTableCheck"
 				label: "Display outlier table"
 				CheckBox {name: "outlierTableTransposeCheck"; label: "Transpose table"}
+				CheckBox {name: "outlierTableFocusCheck"; label: "Focused table"}
 			}
 		}
 	}

@@ -542,6 +542,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   plotData <- plotData[order(plotData$time),]
 
   plotData$includeLine <- NA
+  plotData$includeLine[1] <- T
   for (i in 2:nrow(plotData)) {
     plotData$includeLine[i] <- ifelse((plotData$include[i] == 0 & plotData$include[i+1] &plotData$outBound[i+1]==T)|
                                         plotData$outBound[i]&plotData$outBound[i+1]==T,T,F)
@@ -553,13 +554,11 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
-    predanControlPlot <- createJaspPlot(title= title, height = 320, width = 480)
+    predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720)
     p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(time,y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
       ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred") +
       ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred") +
-      ggplot2::scale_color_manual(guide="none",values=c("#4E84C4","#D16103")) +
-      ggplot2::scale_y_continuous(name = "y",breaks = yBreaks,limits = range(yBreaks)) +
-      ggplot2::scale_x_continuous("time",breaks = xBreaks,limits = range(xBreaks))
+      ggplot2::scale_color_manual(guide="none",values=c("#4E84C4","#D16103"))
 
 
   if(options$controlLineType %in% c("line","both"))
@@ -572,7 +571,9 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                              plotLimit[[1]]))
 
   p <- p + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
-    ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
+    ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1)) +
+    ggplot2::scale_y_continuous(name = "y",breaks = yBreaks,limits = range(yBreaks)) +
+    ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks))
 
   predanControlPlot$plotObject <- p
   #jaspResults[["testPlot"]] <- predanControlPlot
@@ -678,22 +679,57 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   k <- 1 + log2(length(dataControl$y)) + log2(1 + (g1 / sigma.g1))
   binWidthType <- k
 
-  h <- hist(dataControl$y, plot = T, breaks = binWidthType)
+  h <- hist(dataControl$y, plot = F, breaks = binWidthType)
   xticks <- base::pretty(c(dataControl$y, h$breaks), min.n = 3)
 
-  p <- ggplot2::ggplot(data= dataControl,mapping = ggplot2::aes(x = y)) +
-    ggplot2::geom_histogram(ggplot2::aes(y = ..density..,
-                                         fill=outBound),
-                            bins=binWidthType,
-                            breaks = h[["breaks"]],
-                            colour = 1) +
-    ggplot2::scale_fill_manual(values=c("#4E84C4","#D16103")) +
-    ggplot2::ylab("") +
-    ggplot2::scale_x_continuous( breaks = xticks,limits = c(xticks[1],max(xticks))) +
-    jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe()
+  if (options$outlierHistogramDensity)
+    yhigh <- max(h$counts)
 
-  if(options$outlierHistogramDensity)
-    p <- p + ggplot2::geom_density(ggplot2::aes(group=outBound))
+  p <- ggplot2::ggplot(dataControl,
+                       ggplot2::aes(x= y,
+                  binwidth = 0.5))
+
+  if(!options$outlierHistogramDensity){
+    p <- p + ggplot2::geom_histogram(mapping = ggplot2::aes(
+      y= ..count.. ,
+      fill = outBound),
+      colour="black",
+      binwidth = binWidthType,
+      breaks = h[["breaks"]],
+      position = "stack") +
+      ggplot2::scale_color_manual(values = c("#868686FF", "#EFC000FF"))  +
+      ggplot2::guides(color = "none") +
+      ggplot2::scale_y_continuous(name = "Count",breaks = base::pretty(c(0, h$counts))) +
+      ggplot2::scale_fill_manual(values=c("#4E84C4","#D16103"))
+
+  } else {
+    dftmp <- data.frame(x = range(xticks), y = range( c(0,  max(h$density))))
+    p <- p + ggplot2::geom_line(data = dftmp,
+                                mapping = ggplot2::aes(x = .data$x,
+                                                       y = .data$y), color = "white", alpha = 0)
+    p <- p + ggplot2::geom_histogram(mapping = ggplot2::aes(
+      y= ..count.. / (sum(..count..) * binwidth) ,
+      fill = outBound),
+      colour= "black",
+      size     = .7,
+      binwidth = binWidthType,
+      breaks = h[["breaks"]],
+      position = "stack") +
+      ggplot2::geom_density() +
+      ggplot2::scale_color_manual(values = c("#868686FF", "#EFC000FF"))  +
+      ggplot2::scale_x_continuous( breaks = xticks,limits = c(xticks[1],max(xticks))) +
+      ggplot2::guides(color = "none") +
+      ggplot2::scale_y_continuous(name = "Density") +
+      ggplot2::scale_fill_manual(values=c("#4E84C4","#D16103")) +
+      ggplot2::guides(color = FALSE)
+  }
+
+  p <- jaspGraphs::themeJasp(p)
+
+  if(options$outlierHistogramDensity){
+    p <- p + ggplot2::theme(axis.ticks.y = ggplot2::element_blank(),
+                     axis.text.y = ggplot2::element_blank())
+  }
 
   histogramPlot$plotObject <- p
 
@@ -1520,7 +1556,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 .predanBMATrainingPlot <- function(jaspResults,fitBMAObject,fitBMAData,yModel){
 
-  predanBMATrainingPlot <- createJaspPlot(title = "Model Averaged Prediction",height = 320, width = 480)
+  predanBMATrainingPlot <- createJaspPlot(title = "Model Averaged Prediction",height = 480, width = 720)
 
   quantilesBMA <- as.data.frame(ensembleBMA::quantileForecast(fit =fitBMAObject,ensembleData = fitBMAData,quantiles = c(0.025,0.5,0.975) ),)
   colnames(quantilesBMA) <- c("lowerCI","median","higherCI")
