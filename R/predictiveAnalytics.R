@@ -25,6 +25,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanContainerSetup(jaspResults, ready)
     .predanComputeResults(jaspResults, dataset, options, ready)
     .predanPlotsDescriptives(jaspResults,dataset,options,ready)
+
     .predanACFDescriptives(jaspResults,dataset,options,ready)
     .predanHistogramPlot(jaspResults,dataset,options,ready)
     .predanDiagnosticTables(jaspResults, dataset, options,ready)
@@ -34,6 +35,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     #.predanComputeControlPrediction(jaspResults,dataset,options,ready)
     #.predanControlPredictionChart(jaspResults,dataset,options,ready)
     .predanModelSelectionFitHelper(jaspResults,dataset,options,ready)
+    .predanSelectedModelPlots(jaspResults,dataset,options,ready)
+
     .predanForecastVerificationModelsHelper(jaspResults,dataset,options,ready)
     .predanForecastVerificationModelsTable(jaspResults,dataset,options,ready)
 
@@ -75,8 +78,28 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     ##TODO: add depenencies
   }
 
-  if (is.null(jaspResults[["predanBMAContainer"]])){
-    predanBMAContainer <- createJaspContainer("Bayesian Model Averaging")
+  if(is.null(jaspResults[["predanMainContainer"]][["predanDescriptivesContainer"]])){
+    predanDescriptivesContainer <- createJaspContainer("Descriptives", position = 1)
+    jaspResults[["predanMainContainer"]][["predanDescriptivesContainer"]] <- predanDescriptivesContainer
+  }
+
+  if(is.null(jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]])){
+    predanDiagnosticsContainer <- createJaspContainer("Diagnostics", position = 2)
+    jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]] <- predanDiagnosticsContainer
+  }
+
+  if(is.null(jaspResults[["predanMainContainer"]][["predanForecastVerifContainer"]])){
+    predanForecastVerifContainer <- createJaspContainer("Forecast Verification", position = 3)
+    jaspResults[["predanMainContainer"]][["predanForecastVerifContainer"]] <- predanForecastVerifContainer
+  }
+
+  if(is.null(jaspResults[["predanMainContainer"]][["predanModelSelectionContainer"]])){
+    predanModelSelectionContainer <- createJaspContainer("Model Selection", position = 4)
+    jaspResults[["predanMainContainer"]][["predanModelSelectionContainer"]] <- predanModelSelectionContainer
+  }
+
+  if (is.null(jaspResults[["predanMainContainer"]][["predanBMAContainer"]])){
+    predanBMAContainer <- createJaspContainer("Bayesian Model Averaging", position = 5)
     jaspResults[["predanMainContainer"]][["predanBMAContainer"]] <- predanBMAContainer
   }
 
@@ -115,6 +138,17 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
   else
     return(data.frame(y=NULL, time=NULL,  include=NULL,outBound=NULL))
 }
+
+
+
+##### model selection helper functions
+
+
+#.modelSelection
+
+
+
+
 
 
 
@@ -162,6 +196,25 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   mod <- bsts::bsts(formula = y_model,ss,niter = niter,seed = 1,ping = 0)
   return(mod)
+}
+
+.switchModelNames <- function(modelName){
+  switch (modelName,
+          "bsts - autoregressive model" = "bsts-ar",
+          "bsts - local level model" = "bsts-local",
+          "bsts - linear trend model" = "bsts-trend",
+          "bsts - semi local trend model" = "bsts-semi",
+          "baseline - running variance" = "baselineVar",
+          "baseline - running variance & mean" = "baselineVarMean")
+}
+.switchModelNamesReverse <- function(fullModelName){
+  switch (fullModelName,
+          "bsts-ar" = "bsts - autoregressive model",
+          "bsts-local" = "bsts - local level model",
+          "bsts-trend" = "bsts - linear trend model",
+          "bsts-semi" = "bsts - semi local trend model",
+          "baselineVar" = "baseline - running variance",
+          "baselineVarMean" = "baseline - running variance & mean")
 }
 
 .createPredictions <- function(y, niter, parallel,model_function = .bstsModel,full_pred = T, mod = "bsts-local", model_window = 0  , k = 1) {
@@ -391,14 +444,10 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 .forecastVeriDependencies <- function(){
-  return(c("forecastModelBstsLocalLevelCheck",
-             "forecastModelBstsLinearTrendCheck",
-             "forecastModelBstsArCheck",
-             "forecastModelBstsSemiLocalCheck",
+  return(c("forecastModelBstsSemiLocalCheck",
              "forecastVerificationModelWindow",
              "forecastVerificationDraws",
-             "forecastModelBaselineRunVar",
-             "forecastModelBaselineRunVarMean"))
+             "modelsToPlot"))
 }
 
 
@@ -492,26 +541,28 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 .predanPlotsDescriptives <- function(jaspResults,dataset,options,ready) {
   if(!ready) return()
 
-  predanDescriptivePlots <- createJaspContainer(title=gettext("Descriptives"),position =1)
+  predanDescriptivesContainer <- jaspResults[["predanMainContainer"]][["predanDescriptivesContainer"]]
+
+  #predanDescriptivePlots <- createJaspContainer(title=gettext("Descriptives"),position =1)
 
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]][["object"]]
 
 
 
   if(options$controlPlotCheck)
-    .predanBasicControlPlot(jaspResults,predanResults,predanDescriptivePlots,options,zoom=F)
+    .predanBasicControlPlot(jaspResults,predanResults,predanDescriptivesContainer,options,zoom=F)
 
   if(options$controlPlotZoomCheck && options$zoomPeriodEnd >0)
-    .predanBasicControlPlot(jaspResults,predanResults,predanDescriptivePlots,options,zoom=T)
+    .predanBasicControlPlot(jaspResults,predanResults,predanDescriptivesContainer,options,zoom=T)
 
 
-  jaspResults[["predanMainContainer"]][["predanDescriptivePlots"]] <- predanDescriptivePlots
+  #jaspResults[["predanMainContainer"]][["predanDescriptivePlots"]] <- predanDescriptivePlots
   return()
 }
 
 
 
-.predanBasicControlPlot <- function(jaspResults,predanResults,predanDescriptivePlots,options,zoom){
+.predanBasicControlPlot <- function(jaspResults,predanResults,predanDescriptivesContainer,options,zoom){
 
   controlData <- predanResults[["dataControl"]]
 
@@ -542,7 +593,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   plotData <- plotData[order(plotData$time),]
 
   plotData$includeLine <- NA
-  plotData$includeLine[1] <- T
+  plotData$includeLine[1] <- plotData$outBound[1]
   for (i in 2:nrow(plotData)) {
     plotData$includeLine[i] <- ifelse((plotData$include[i] == 0 & plotData$include[i+1] &plotData$outBound[i+1]==T)|
                                         plotData$outBound[i]&plotData$outBound[i+1]==T,T,F)
@@ -578,15 +629,16 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   predanControlPlot$plotObject <- p
   #jaspResults[["testPlot"]] <- predanControlPlot
   if(!zoom)
-    predanDescriptivePlots[["predanControlPlot"]] <- predanControlPlot
+    predanDescriptivesContainer[["predanControlPlot"]] <- predanControlPlot
   else
-    predanDescriptivePlots[["predanControlPlotZoom"]] <- predanControlPlot
+    predanDescriptivesContainer[["predanControlPlotZoom"]] <- predanControlPlot
   return()
 }
 
 
+
 .predanACFDescriptives <- function(jaspResults,dataset,options,ready){
-  if((!options$acfPlotCheck || !ready) || !is.null(jaspResults[["predanMainContainer"]][["acfPlots"]])) return()
+  if((!options$acfPlotCheck || !ready) || !is.null(jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]][["acfPlots"]])) return()
 
   acfPlots <- createJaspContainer(title= gettext("Autocorrelation Function Plots"))
   # TODO add dependencies
@@ -595,7 +647,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   .predanACFPlots(jaspResults,dataControl,options,acfPlots)
 
-  jaspResults[["predanMainContainer"]][["acfPlots"]] <- acfPlots
+  jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]][["acfPlots"]] <- acfPlots
 
   return()
 }
@@ -652,9 +704,9 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 .predanHistogramPlot <- function(jaspResults,dataset,options,ready){
-  if((!ready || !options$outlierHistogramCheck)|| !is.null(jaspResults[["predanMainContainer"]][["histogramPlot"]]) ) return()
+  if((!ready || !options$outlierHistogramCheck)|| !is.null(jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]][["histogramPlot"]]) ) return()
 
-  if(is.null(jaspResults[["predanMainContainer"]][["histogramPlot"]] ))
+  if(is.null(jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]][["histogramPlot"]] ))
     histogramPlot <- createJaspPlot(title= gettext("Histogram Plot"), height = 360, width = 450)
 
   histogramPlot$dependOn(c(.boundDependencies(),"outlierHistogramCheck","outlierHistogramDensity"))
@@ -664,7 +716,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   .predanHistogramPlotFill(jaspResults,dataControl,options,histogramPlot)
 
-  jaspResults[["predanMainContainer"]][["histogramPlot"]] <- histogramPlot
+  jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]][["histogramPlot"]] <- histogramPlot
 
   return()
 
@@ -751,7 +803,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   if(options$outlierTableCheck)
     .predanOutlierTable(dataControl,options, diagnosticTables)
 
-  jaspResults[["predanMainContainer"]][["diagnosticTables"]] <- diagnosticTables
+  jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]][["diagnosticTables"]] <- diagnosticTables
 
   return()
 
@@ -773,7 +825,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   summaryTable$addColumnInfo(name="min",      title=gettext("Minimum"),   type="number")
   summaryTable$addColumnInfo(name="max",      title=gettext("Maximum"),   type="number")
   summaryTable$addColumnInfo(name="valid",    title=gettext("Valid"),   type="integer")
-  summaryTable$addColumnInfo(name="missing",  title=gettext("Missing"),   type="integer")
+  #summaryTable$addColumnInfo(name="missing",  title=gettext("Missing"),   type="integer")
   summaryTable$addColumnInfo(name="percent",  title=gettext("Percent"),   type="number", format= "dp:1;pc")
   summaryTable$addColumnInfo(name="deviation",title=gettext("Average Deviation"),   type="number")
 
@@ -788,7 +840,22 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                                      missing = sum(is.na(x)))
                                  ))
 
-  tableRes$percent = tableRes[,6]/sum(tableRes[,6])
+
+  tableResAll <- do.call(data.frame,
+                      aggregate( y ~ 1,
+                                 data = dataControl,
+                                 FUN = function(x) c(mean = mean(x),
+                                                     sd = sd(x),
+                                                     min = min(x),
+                                                     max = max(x),
+                                                     valid = sum(!is.na(x)),
+                                                     missing = sum(is.na(x)))
+                      ))
+
+  tableResAll$outBoundArea = "All"
+
+  tableRes <- rbind(tableRes,tableResAll)
+  tableRes$percent = tableRes[,6]/nrow(dataControl)
 
   tableDeviation <- do.call(data.frame,
                             aggregate( distance~ outBoundArea,
@@ -808,7 +875,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
       min = tableRes[i,4],
       max = tableRes[i,5],
       valid = tableRes[i,6],
-      missing = tableRes[i,7],
+      #missing = tableRes[i,7],
       percent = tableRes[i,8],
       deviation = tableRes[i,9]
     )
@@ -825,7 +892,19 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 .predanOutlierTable <- function(dataControl,options, diagnosticTables){
 
-  outlierTable <- createJaspTable("Outlier Table")
+
+  if(options$outlierTableFocusCheck & options$outLierTableEnd >1){
+    start <- options$outLierTableStart
+    end <- options$outLierTableEnd
+    if(end > nrow(dataControl))
+      end <- nrow(dataControl)
+
+    dataControl <- dataControl[start:end,]
+    title <- "Control Summary Table - Focused"
+  } else
+    title <- "Control Summary Table"
+
+  outlierTable <- createJaspTable(title = title)
 
   outlierTable$dependOn("outlierTableTransposeCheck")
 
@@ -976,7 +1055,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   controlData <- predanResults[[1]]
 
 
-  controlPredictionResults <- .predanControlPredictionResults(jaspResults,controlData,dataset,options)
+  controlPredictionResults <- .predanControlPredictionResultsHelper(jaspResults,controlData,dataset,options)
 
   predanControlPredictions$object <- controlPredictionResults
 
@@ -988,7 +1067,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 }
 
 
-.predanControlPredictionResults <- function(jaspResults,controlData,dataset,options){
+.predanControlPredictionResultsHelper <- function(jaspResults,controlData,dataset,options){
 
   oneStepPredMatrix <- .createPredictions(y = controlData$y[options$controlPredictionStart:options$controlPredictionEnd],
                                          niter = options$predDraws,
@@ -1085,13 +1164,14 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 .predanModelSelectionFitHelper <- function(jaspResults,dataset,options,ready){
-  if(!ready || !options$forecastModelBstsLocalLevelCheck) return()
+  if(!ready || length(options[["selectedModels"]]) < 1 ) return()
 
   predanModelSelectionFit <- createJaspState()
   predanModelSelectionFit$dependOn(c("forecastModelBstsLocalLevelCheck",
                                   "forecastModelBstsLinearTrendCheck",
                                   "forecastModelBstsArCheck",
-                                  "forecastModelBstsSemiLocalCheck"))
+                                  "forecastModelBstsSemiLocalCheck",
+                                  "selectedModels"))
 
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
   controlData <- predanResults[[1]]
@@ -1107,32 +1187,30 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   modelFitList <- list()
 
-  modelsToCalculate <- unlist(options[c("forecastModelBstsLocalLevelCheck",
-                    "forecastModelBstsLinearTrendCheck",
-                    "forecastModelBstsArCheck",
-                    "forecastModelBstsSemiLocalCheck")])
+  modelsToCalculate <- unlist(options[["selectedModels"]])
 
-  modelsToCalculate <- c("bsts-local","bsts-trend","bsts-ar","bsts-semi")[modelsToCalculate]
-
-
-  #if(any(modelsToCalculate == "all"))
-  #  modelsToCalculate <- c("bsts-ar","bsts-local","bsts-trend" ,"bsts-semi", "baselineVar","baselineMean")
-
-  if("bsts-ar"     %in% modelsToCalculate)
+  if("bsts - autoregressive model"     %in% modelsToCalculate)
     try(modelFitList$"bsts-ar" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-ar"))
 
-  if("bsts-local"  %in% modelsToCalculate)
+  if("bsts - local level model"  %in% modelsToCalculate)
     try(modelFitList$"bsts-local" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-local"))
 
-  if("bsts-trend"  %in% modelsToCalculate)
+  if("bsts - linear trend model"  %in% modelsToCalculate)
     try(modelFitList$"bsts-trend" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-trend"))
 
+  if("bsts - semi local trend model"   %in% modelsToCalculate)
+    try(modelFitList$"bsts-semi" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-semi"))
 
-  if("bsts-semi"   %in% modelsToCalculate)
-    try(modelFitList$"bsts-semi" <- .bstsModel(y_model = y,niter = niter,mod = "bsts-semi" ))
+  if("baseline - running variance" %in% modelsToCalculate)
+    try(modelFitList$baselineVar <- .baslinePredictionModel(y=y,window = 30,niter = niter,k=1))
 
+  if("baseline - running variance & mean" %in% modelsToCalculate)
+    try(modelFitList$baselineVarMean <- .baslinePredictionModel(y = y, window = 30,runningMean = T, niter = niter,k=1))
 
-  modelFitSummary <- lapply(modelFitList,summary)
+  # TODO: add summary statistics for baseline models
+
+  summaryModelIndex <- !names(modelFitList) %in% c("baselineVar","baselineVarMean")
+  modelFitSummary <- lapply(modelFitList[summaryModelIndex],summary)
   modelFitSummary <- as.data.frame(do.call(rbind,modelFitSummary))
 
   modelFitSummaryTable <- createJaspTable("Model Fit Summary Table")
@@ -1152,8 +1230,69 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   predanModelSelectionFit$object <- modelFitList
 
-  jaspResults[["predanMainContainer"]][["modelFitTable"]] <- modelFitSummaryTable
+  jaspResults[["predanMainContainer"]][["predanModelSelectionContainer"]][["modelFitTable"]] <- modelFitSummaryTable
+
   jaspResults[["predanResults"]][["modelFitState"]] <- predanModelSelectionFit
+  # add plotable models to qml list
+  modelNamesFull <- sapply(names(modelFitList),.switchModelNamesReverse)
+  jaspResults[["plottableModelsQml"]] <- createJaspQmlSource(sourceID="plottableModelsQml", value=modelNamesFull)
+
+  return()
+}
+
+
+
+
+
+.predanSelectedModelPlots <- function(jaspResults,dataset,options,ready){
+  if(!ready || is.null(jaspResults[["predanResults"]][["modelFitState"]])) return()
+
+  selectedModelPlots <- createJaspContainer("Selected Model Plots")
+  selectedModelPlots$dependOn("modelsToPlot")
+  modelFitState <- jaspResults[["predanResults"]][["modelFitState"]]$object
+  predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
+
+  upperLimit <- predanResults[[2]]
+  lowerLimit <-  predanResults[[3]]
+
+  #limits <- c(upperLimit,lowerLimit)
+  plotLimits <- predanResults[[4]]
+
+  plotLimits <- predanResults[[4]]
+  selectedModelsPlot <- unlist(options[["modelsToPlot"]])
+
+  selectedModelsLoop <- sapply(selectedModelsPlot, .switchModelNames)
+
+  for (modelName in selectedModelsLoop){
+    singleModel <- modelFitState[[modelName]]
+    modelPlot <- createJaspPlot(title=modelName)
+    if(grepl("bsts",modelName))
+      singleModel <- .extractState(singleModel)
+    else next
+
+    #View(singleModel)
+    xBreaks <- pretty(singleModel$time)
+    yBreaks <- pretty(unlist(singleModel[,c("lowerCI","higherCI")]))
+
+    p <- ggplot2::ggplot(singleModel,ggplot2::aes(x=time,y=mean)) +
+      ggplot2::geom_ribbon(mapping=ggplot2::aes(ymin=lowerCI,ymax =higherCI),
+                           fill ="blue",alpha=0.5) + ggplot2::xlab("Time") +
+      ggplot2::ylab("Distribution") +
+      ggplot2::geom_line(size=0.7) +
+      ggplot2::geom_point(ggplot2::aes(y=actualData),size=0.5) +
+      jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
+      ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
+      ggplot2::scale_x_continuous("Time",breaks = xBreaks,limits = range(xBreaks)) +
+      #ggplot2::coord_cartesian(ylim = rev(plotLimits)) +
+      ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
+
+    modelPlot$plotObject <- p
+    selectedModelPlots[[modelName]] <- modelPlot
+    #print(p)
+
+  }
+
+  jaspResults[["predanMainContainer"]][["selectedModelPlots"]] <- selectedModelPlots
 
   return()
 }
@@ -1161,7 +1300,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 .predanForecastVerificationModelsHelper <- function(jaspResults,dataset,options,ready){
-  if(!ready || !options$forecastModelBstsLocalLevelCheck) return() ##any(!options$forecastModelBstsLocalLevelCheck || !options$forecastModelBstsLinearTrendCheck || !options$forecastModelBstsArCheck || !options$forecastModelBstsSemiLocalCheck)) return()
+  if(!ready || length(options[["forecastVerificationSelectedModels"]]) < 1) return() ##any(!options$forecastModelBstsLocalLevelCheck || !options$forecastModelBstsLinearTrendCheck || !options$forecastModelBstsArCheck || !options$forecastModelBstsSemiLocalCheck)) return()
 
   if (is.null(jaspResults[["predanResults"]][["predanForecastVerificationModels"]])){
 
@@ -1181,8 +1320,11 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                           "forecastModelBstsLinearTrendCheck",
                                           "forecastModelBstsArCheck",
                                           "forecastModelBstsSemiLocalCheck")])
+    modelNamesAll <- unlist(options[["forecastVerificationSelectedModels"]])
 
-    modelNames <- c("bsts-local","bsts-trend","bsts-ar","bsts-semi")[checkedBstsModels]
+    modelNamesAll <- sapply(modelNamesAll, .switchModelNames)
+    modelNames <- modelNamesAll[!modelNamesAll %in% c("baselineVar","baselineVarMean")]
+    #modelNames <- c("bsts-local","bsts-trend","bsts-ar","bsts-semi")[checkedBstsModels]
 
     modelList <- list()
 
@@ -1192,20 +1334,20 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
     for (j in seq_along(modelNames)) {
 
-      #startProgressbar(length(y)/7,gettextf(paste0("Running forecasting model ", j, " / ",length(modelNames)," :",modelNames[j])))
+      startProgressbar(length(modelNames),gettextf(paste0("Running forecasting model ", j, " / ",length(modelNames)," :",modelNames[j])))
 
 
 
       modelList[[modelNames[j]]] <- .createPredictions(y = y,niter = options$forecastVerificationDraws,parallel = T,mod = modelNames[j],model_function = options$forecastVerificationModelWindow,k = k)
       #modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
-
+      progressbarTick()
       }
     # baselinemodels
 
-    if(options$forecastModelBaselineRunVar)
+    if("baselineVar" %in% modelNames)
       modelList$baselineRunVar <- .baslinePredictionModel(y = y, window = 20,niter = options$forecastVerificationDraws,k=k)
 
-    if(options$forecastModelBaselineRunVarMean)
+    if("baselineVarMean" %in% modelNames)
       modelList$baselineRunVarMean <- .baslinePredictionModel(y = y, window = 20,niter = options$forecastVerificationDraws,runningMean = T,k = k)
 
     predanForecastVerificationModels$object <- modelList
@@ -1226,8 +1368,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   forecastMetricTable <- createJaspTable(title = "Forecast Verification Metrics Table")
   forecastMetricData <- createJaspState()
 
-  forecastMetricTable$dependOn(.forecastMetricDependencies())
-  forecastMetricData$dependOn(.forecastMetricDependencies())
+  forecastMetricTable$dependOn(c(.forecastMetricDependencies(),.forecastVeriDependencies()))
+  forecastMetricData$dependOn(c(.forecastMetricDependencies(),.forecastVeriDependencies()))
 
   modelListForecast <-  jaspResults[["predanResults"]][["predanForecastVerificationModels"]]$object
 
@@ -1270,7 +1412,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   forecastMetricData$object <- .predanForecastVerificationModelsTableFill(y,controlData,jaspResults,forecastMetricTable,modelListForecast,options)
 
 
-  jaspResults[["predanMainContainer"]][["forecastMetricTable"]] <- forecastMetricTable
+  jaspResults[["predanMainContainer"]][["predanForecastVerifContainer"]][["forecastMetricTable"]] <- forecastMetricTable
   jaspResults[["predanResults"]][["forecastMetricData"]] <- forecastMetricData
 
   return()
@@ -1500,6 +1642,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   if(is.null(jaspResults[["predanMainContainer"]][["predanBMAContainer"]][["BMAWeightsTable"]] )){
 
 
+
     BMAWeightsTable <- createJaspTable(title = "Posterior Model Weights")
 
 
@@ -1565,7 +1708,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   quantilesBMA$time <- trainingIndex
 
   xBreaks <- pretty(quantilesBMA$time)
-  yBreaks <- yBreaks <- pretty(c(min(quantilesBMA$lowerCI), max(quantilesBMA$higherCI)))
+  yBreaks <- pretty(c(min(quantilesBMA$lowerCI), max(quantilesBMA$higherCI)))
 
   p <- ggplot2::ggplot(data = quantilesBMA,mapping = ggplot2::aes(x=time,y=median)) +
     ggplot2::geom_line(col="red") + ggplot2::geom_line(ggplot2::aes(y=lowerCI))  +
@@ -1603,8 +1746,12 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   colnames(weights) <- c("time","model","value")
 
+  xBreaks <- pretty(weights$time)
+
   p <-  ggplot2::ggplot(weights,ggplot2::aes(x = time,y = value,color=model)) + ggplot2::geom_line() +
     ggplot2::geom_point() +
+    ggplot2::scale_x_continuous(breaks = xBreaks,limits = range(xBreaks)) +
+    ggplot2::ylab("Time") + ggplot2::xlab("Weight") +
     ggplot2::ylim(0,1) + jaspGraphs::themeJaspRaw(legend.position = "right")  + jaspGraphs::geom_rangeframe() +
     ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) + ggplot2::labs(color="Models")
 

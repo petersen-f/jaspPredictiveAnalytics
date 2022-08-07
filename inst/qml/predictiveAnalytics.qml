@@ -138,21 +138,21 @@ Form
 				}
 
 				CheckBox
+				{
+					name: "controlPlotZoomCheck"
+					label: qsTr("Custom Plot Focus")
+					childrenOnSameRow: false
+					enabled: controlPlotCheckbox.checked
+					// fix that end period is from start to nrow of series
+					Group
 					{
-						name: "controlPlotZoomCheck"
-						label: qsTr("Custom Plot Focus")
-						childrenOnSameRow: false
-						enabled: controlPlotCheckbox.checked
-						// fix that end period is from start to nrow of series
-						Group
-						{
-							columns: 2
-							IntegerField{name:"zoomPeriodStart"; label: qsTr("Start"); defaultValue: 0}
-							IntegerField{name:"zoomPeriodEnd"; label: qsTr("End"); defaultValue: 0}
-
-						}
+						columns: 2
+						IntegerField{name:"zoomPeriodStart"; label: qsTr("Start"); defaultValue: 0}
+						IntegerField{name:"zoomPeriodEnd"; label: qsTr("End"); defaultValue: 0}
 
 					}
+
+				}
 			}
 		}
 
@@ -212,7 +212,22 @@ Form
 				name: "outlierTableCheck"
 				label: "Display outlier table"
 				CheckBox {name: "outlierTableTransposeCheck"; label: "Transpose table"}
-				CheckBox {name: "outlierTableFocusCheck"; label: "Focused table"}
+				CheckBox
+				{
+					name: "outlierTableFocusCheck"
+					label: qsTr("Custom Table Focus")
+					childrenOnSameRow: false
+					enabled: "summaryStatsTableCheck".checked
+					// fix that end period is from start to nrow of series
+					Group
+					{
+						columns: 2
+						IntegerField{name:"outLierTableStart"; label: qsTr("Start"); defaultValue: 0}
+						IntegerField{name:"outLierTableEnd"; label: qsTr("End"); defaultValue: 0}
+
+					}
+
+				}
 			}
 		}
 	}
@@ -251,11 +266,16 @@ Form
 		title: qsTr("Model Selection")
 		columns: 2
 
+
+
+
+
+
 		Group
 		{
 			//title: qsTr("Model Selection")
-			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running Variance"}
-			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running Variance & Mean"}
+			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running variance"}
+			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running variance & mean"}
 			CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - local level model"}
 			CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - linear trend model"}
 			CheckBox{name:"forecastModelBstsArCheck";label: "bsts - autoregressive model"}
@@ -264,6 +284,46 @@ Form
 
 		}
 
+		VariablesForm
+		{
+			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+
+			AvailableVariablesList
+			{
+				name: "modelOptions"
+				source: [{values: ["baseline - running variance",
+									"baseline - running variance & mean",
+									"bsts - local level model",
+									"bsts - linear trend model",
+									"bsts - autoregressive model",
+									"bsts - semi local trend model"]}]
+			}
+			AssignedVariablesList
+			{
+				name: "selectedModels"
+			}
+		}
+	}
+
+
+	Section
+	{
+		title: qsTr("Model Plots")
+		VariablesForm
+		{
+			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+			AvailableVariablesList
+			{
+
+				name: "fromR"
+				source: [ { rSource: "plottableModelsQml" } ]
+			}
+			AssignedVariablesList
+			{
+				//height: 200
+				name: "modelsToPlot"
+			}
+		}
 	}
 
 	Section
@@ -273,6 +333,21 @@ Form
 
 
 		title: qsTr("Forecast Verification")
+
+		VariablesForm
+		{
+			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+
+			AvailableVariablesList
+			{
+				name: "forecastVerificationAvailableModels"
+				source: [ { rSource: "plottableModelsQml" } ]
+			}
+			AssignedVariablesList
+			{
+					name: "forecastVerificationSelectedModels"
+			}
+		}
 
 		Group
 		{
@@ -399,17 +474,6 @@ Form
 
   						]
 					}
-
-
-
-
-
-
-
-
-
-
-
 
 				}
 			}
