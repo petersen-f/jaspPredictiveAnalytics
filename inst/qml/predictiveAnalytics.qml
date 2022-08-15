@@ -169,48 +169,15 @@ Form
 		{
 			title: qsTr("Tables")
 
-		}
-
-		Group
-		{
-			title: qsTr("Plots")
-
-		}
-		CheckBox
-		{
-			name: "acfPlotCheck"
-			label: "Autocorrelation function plot"
-			IntegerField{name:"options$acfLagsMax"; label: qsTr("Lags"); defaultValue: 30}
-		}
-
-		Group
-		{
-			title: qsTr("Out-of-bound plots")
-			CheckBox
-			{
-				name: "outlierHistogramCheck"
-				label: qsTr("Display histogram")
-				CheckBox
-				{
-					name: "outlierHistogramDensity"
-					label: qsTr("show densities")
-				}
-			}
-		}
-
-		Group
-		{
-			name: "summaryStatsTable"
-			title: qsTr("Summary tables")
 			CheckBox
 			{
 				name: "summaryStatsTableCheck"
-				label: "Display summary statistics table"
+				label: "Summary statistics"
 			}
 			CheckBox
 			{
 				name: "outlierTableCheck"
-				label: "Display outlier table"
+				label: "Outlier table"
 				CheckBox {name: "outlierTableTransposeCheck"; label: "Transpose table"}
 				CheckBox
 				{
@@ -229,6 +196,31 @@ Form
 
 				}
 			}
+
+		}
+
+		Group
+		{
+			title: qsTr("Plots")
+
+				CheckBox
+				{
+					name: "outlierHistogramCheck"
+					label: qsTr("Histogram")
+					CheckBox
+					{
+						name: "outlierHistogramDensity"
+						label: qsTr("Show densities")
+					}
+				}
+
+			CheckBox
+			{
+				name: "acfPlotCheck"
+				label: "Autocorrelation function"
+				IntegerField{name:"options$acfLagsMax"; label: qsTr("Lags"); defaultValue: 30}
+			}
+
 		}
 	}
 
@@ -271,18 +263,18 @@ Form
 
 
 
-		Group
-		{
-			//title: qsTr("Model Selection")
-			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running variance"}
-			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running variance & mean"}
-			CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - local level model"}
-			CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - linear trend model"}
-			CheckBox{name:"forecastModelBstsArCheck";label: "bsts - autoregressive model"}
-			CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - semi local trend model"}
+	//	Group
+	//	{
+	//		//title: qsTr("Model Selection")
+	//		CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running variance"}
+	//		CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running variance & mean"}
+	//		CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - local level model"}
+	//		CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - linear trend model"}
+	//		CheckBox{name:"forecastModelBstsArCheck";label: "bsts - autoregressive model"}
+	//		CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - semi local trend model"}
 
 
-		}
+	//	}
 
 		VariablesForm
 		{
