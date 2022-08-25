@@ -117,7 +117,9 @@ Form
 			{
 				name: "controlPlotCheck"
 				label: qsTr("Display control chart")
+				id: controlPlotCheckbox
 				RadioButtonGroup
+
             	{
                 	name: "controlLineType"
                 	radioButtonsOnSameRow: true
@@ -136,20 +138,21 @@ Form
 				}
 
 				CheckBox
+				{
+					name: "controlPlotZoomCheck"
+					label: qsTr("Custom Plot Focus")
+					childrenOnSameRow: false
+					enabled: controlPlotCheckbox.checked
+					// fix that end period is from start to nrow of series
+					Group
 					{
-						name: "controlPlotZoomCheck"
-						label: qsTr("Custom Plot Focus")
-						childrenOnSameRow: false
-						// fix that end period is from start to nrow of series
-						Group
-						{
-							columns: 2
-							IntegerField{name:"zoomPeriodStart"; label: qsTr("Start"); defaultValue: 0}
-							IntegerField{name:"zoomPeriodEnd"; label: qsTr("End"); defaultValue: 0}
-
-						}
+						columns: 2
+						IntegerField{name:"zoomPeriodStart"; label: qsTr("Start"); defaultValue: 0}
+						IntegerField{name:"zoomPeriodEnd"; label: qsTr("End"); defaultValue: 0}
 
 					}
+
+				}
 			}
 		}
 
@@ -158,79 +161,69 @@ Form
 	Section
 	{
 		title: qsTr("Diagnostics")
-		CheckBox
-		{
-			name: "acfPlotCheck"
-			label: "Autocorrelation function plot"
-			IntegerField{name:"options$acfLagsMax"; label: qsTr("Lags"); defaultValue: 30}
-		}
+
+		columns: 2
+
 
 		Group
 		{
-			title: qsTr("Out-of-bound plots")
-			CheckBox
-			{
-				name: "outlierHistogramCheck"
-				label: qsTr("Display histogram")
-				CheckBox
-				{
-					name: "outlierHistogramDensity"
-					label: qsTr("show densities")
-				}
-			}
-		}
+			title: qsTr("Tables")
 
-		Group
-		{
-			name: "summaryStatsTable"
-			title: qsTr("Summary tables")
 			CheckBox
 			{
 				name: "summaryStatsTableCheck"
-				label: "Display summary statistics table"
+				label: "Summary statistics"
 			}
 			CheckBox
 			{
 				name: "outlierTableCheck"
-				label: "Display outlier table"
+				label: "Outlier table"
 				CheckBox {name: "outlierTableTransposeCheck"; label: "Transpose table"}
-			}
-		}
-	}
-	Section
-	{
-		title: qsTr("Binary Control Analysis")
-		//Group
-		//{
-			CheckBox
-			{
-				name: "binaryControlChartCheck"
-
-				label: "Show binary control chart"
-
-				DropDown
+				CheckBox
 				{
-					name: "binaryControlMethod"
-					id: binaryMethodSelection
-					label: "Select Control Method"
-					values: ["state space", "rolling average"]
+					name: "outlierTableFocusCheck"
+					label: qsTr("Custom Table Focus")
+					childrenOnSameRow: false
+					enabled: "summaryStatsTableCheck".checked
+					// fix that end period is from start to nrow of series
+					Group
+					{
+						columns: 2
+						IntegerField{name:"outLierTableStart"; label: qsTr("Start"); defaultValue: 0}
+						IntegerField{name:"outLierTableEnd"; label: qsTr("End"); defaultValue: 0}
+
+					}
 
 				}
+			}
 
-				DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit")}
-				Group
+		}
+
+		Group
+		{
+			title: qsTr("Plots")
+
+				CheckBox
 				{
-					visible: binaryMethodSelection.currentValue == "state space"
-					DoubleField
+					name: "outlierHistogramCheck"
+					label: qsTr("Histogram")
+					CheckBox
 					{
-						name: "binaryStateSpaceNiter"
-						label: qsTr("MCMC samples")
-						defaultValue: 500
+						name: "outlierHistogramDensity"
+						label: qsTr("Show densities")
 					}
 				}
+
+			CheckBox
+			{
+				name: "acfPlotCheck"
+				label: "Autocorrelation function"
+				IntegerField{name:"options$acfLagsMax"; label: qsTr("Lags"); defaultValue: 30}
 			}
-		//}
+
+		}
 	}
+
 
 	//Section
 	//{
@@ -259,38 +252,105 @@ Form
 	//	}
 	//}
 
+
+	Section
+	{
+		title: qsTr("Model Selection")
+		columns: 2
+
+
+
+
+
+
+	//	Group
+	//	{
+	//		//title: qsTr("Model Selection")
+	//		CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running variance"}
+	//		CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running variance & mean"}
+	//		CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - local level model"}
+	//		CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - linear trend model"}
+	//		CheckBox{name:"forecastModelBstsArCheck";label: "bsts - autoregressive model"}
+	//		CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - semi local trend model"}
+
+
+	//	}
+
+		VariablesForm
+		{
+			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+
+			AvailableVariablesList
+			{
+				name: "modelOptions"
+				source: [{values: ["baseline - running variance",
+									"baseline - running variance & mean",
+									"bsts - local level model",
+									"bsts - linear trend model",
+									"bsts - autoregressive model",
+									"bsts - semi local trend model"]}]
+			}
+			AssignedVariablesList
+			{
+				name: "selectedModels"
+			}
+		}
+	}
+
+
+	Section
+	{
+		title: qsTr("Model Plots")
+		VariablesForm
+		{
+			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+			AvailableVariablesList
+			{
+
+				name: "fromR"
+				source: [ { rSource: "plottableModelsQml" } ]
+			}
+			AssignedVariablesList
+			{
+				//height: 200
+				name: "modelsToPlot"
+			}
+		}
+	}
+
 	Section
 
 	{
+		columns : 2
+
+
+		title: qsTr("Forecast Verification")
+
+		VariablesForm
+		{
+			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+
+			AvailableVariablesList
+			{
+				name: "forecastVerificationAvailableModels"
+				source: [ { rSource: "plottableModelsQml" } ]
+			}
+			AssignedVariablesList
+			{
+					name: "forecastVerificationSelectedModels"
+			}
+		}
+
 		Group
 		{
 			Layout.columnSpan: 1
 	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
 			IntegerField{name: "forecastVerificationModelWindow";label: "Sliding window";defaultValue: 30 ;min: 0}
-
-		}
-		Group
-		{
 			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:10;min: 10}
-
 			IntegerField{name: "forecastVerificationModelHistory";label: "Model history";defaultValue:200;min: 0}
 
-
 		}
-		title: qsTr("Forecast Verification")
 
-		Group
-		{
-			title: qsTr("Model Selection")
-			CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running Variance"}
-			CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running Variance & Mean"}
-			CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - local level model"}
-			CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - linear trend model"}
-			CheckBox{name:"forecastModelBstsArCheck";label: "bsts - autoregressive model"}
-			CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - semi local trend model"}
-
-
-		}
 
 		Group
 		{
@@ -299,7 +359,7 @@ Form
 			//CheckBox{name:"forecastMetricsLog";label: "Logarithmic score";checked:true}
 			CheckBox{name:"forecastMetricsCRPS";label: "Continuous ranked probability score";checked:true}
 			CheckBox{name:"forecastMetricsDSS";label: "Dawid-Sebastiani score";checked:true}
-			CheckBox{name:"forecastMetricsAUC";label: "Receiver operator Characteristics";checked:true}
+			CheckBox{name:"forecastMetricsAUC";label: "ROC";checked:true}
 			CheckBox{name:"forecastMetricsPR";label: "Precision-recall score";checked:true}
 			CheckBox{name:"forecastMetricsBrier";label: "Brier score";checked:true}
 			//CheckBox{name:"forecastMetricsRSME";label: "Root mean squared error"}
@@ -407,17 +467,6 @@ Form
   						]
 					}
 
-
-
-
-
-
-
-
-
-
-
-
 				}
 			}
 
@@ -425,14 +474,48 @@ Form
 
 		Group
 		{
-		CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
-
-
-		CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
+			enabled: bmaEnabled.checked
+			CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
+			CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
 
 
 		}
 
+	}
+
+	Section
+	{
+		title: qsTr("Binary Control Analysis")
+		//Group
+		//{
+			CheckBox
+			{
+				name: "binaryControlChartCheck"
+
+				label: "Show binary control chart"
+
+				DropDown
+				{
+					name: "binaryControlMethod"
+					id: binaryMethodSelection
+					label: "Select Control Method"
+					values: ["state space", "rolling average"]
+
+				}
+
+				DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit")}
+				Group
+				{
+					visible: binaryMethodSelection.currentValue == "state space"
+					DoubleField
+					{
+						name: "binaryStateSpaceNiter"
+						label: qsTr("MCMC samples")
+						defaultValue: 500
+					}
+				}
+			}
+		//}
 	}
 
 
