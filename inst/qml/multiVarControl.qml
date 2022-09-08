@@ -80,12 +80,13 @@ Form
             label: qsTr("Summarise after every")
             afterLabel: qsTr("data points")
         }
-        IntegerField{name: multiBinomDraws; defaultValue: 500}
+        IntegerField{name: "multiBinomDraws"; defaultValue: 500; label: qsTr("MCMC draws")}
 
         CheckBox
         {
             name: "multiBinaryCheckPlot"
-            title: qsTr("Multivariate binary control plot")
+            label: qsTr("Multivariate binary control plot")
+            checked: true
         }
     }
 }

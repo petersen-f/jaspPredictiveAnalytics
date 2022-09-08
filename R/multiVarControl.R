@@ -32,13 +32,14 @@ multiVarControl <- function(jaspResults, dataset, options) {
 }
 
 .mVarConReadData <- function(dataset,options){
-  if(!is.null(dataset))
-    return(dataset)
+  #if(!is.null(dataset))
+   # return(dataset)
 
   vars <- unlist(options$variables)
-  dataset <- .readDataSetToEnd(columns = vars)
+  dataset <- .readDataSetToEnd(columns.as.numeric = vars)
 
   dataset$time <- 1:nrow(dataset)
+
   dataset <- tail(dataset,options$previousDataPoints)
   return(dataset)
 }
@@ -61,26 +62,27 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
 ##### Helper functions
 
-.computeBoundsHelper <- function(data){
+.computeBoundsHelper <- function(data,options){
 
-  data <- as.data.frame(data)
+    controlBounds <- data.frame( mean = c(66,8,2.5,13.15,13.15,13.15,13.15,7,7),
+                               bound= c(.43,.46,.46,.16,.16,.18,.18,.33,.33))
 
-  controlBounds <- data.frame(mean = c(66,8,2.5,13.15,13.15,13.15,13.15,7,7),
-                              bound= c(.43,.46,.46,.16,.16,.18,.18,.33,.33))
 
-  rownames(controlBounds) <- c("X17", "X18", "X19", "X20", "X21", "X22", "X23", "X24", "X25")
-  cols <- which(rownames(controlBounds) %in% colnames(data))
+    rownames(controlBounds) <- encodeColNames(c("X17", "X18", "X19", "X20", "X21", "X22", "X23", "X24", "X25"))
 
-  cols <- rownames(controlBounds)[cols]
+    cols <- intersect(rownames(controlBounds),colnames(data))
 
-  dataCoded <- as.data.frame(sapply(X=cols, function(x) {
-    as.numeric(data[x] < controlBounds[x,"mean"] - controlBounds[x,"bound"] |
-                 data[x] > controlBounds[x,"mean"] + controlBounds[x,"bound"] )
+    dataCoded <- as.data.frame(sapply(X=cols, function(x) {
+      as.numeric(data[x] < controlBounds[x,"mean"] - controlBounds[x,"bound"] |
+                   data[x] > controlBounds[x,"mean"] + controlBounds[x,"bound"] )
     },USE.NAMES = T))
+    colnames(dataCoded) <- cols
 
-  colnames(dataCoded) <- colnames(data[cols])
+
   return(dataCoded)
 }
+
+
 
 
 # aggregate binomial data by a window
@@ -102,8 +104,8 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
   overallSummaryTable <- createJaspTable(title = "Control Summary Table")
 
+  overallSummaryTable$dependOn(c("variables","overallControlSummaryTable","transposeOverallTable","orderTableByOutBound"))
 
-  overallSummaryTable$dependOn(c("variables","transposeOverallTable","orderTableByOutBound"))
   overallSummaryTable$addColumnInfo(name = "variable", title = "Variable", type= "string")
   overallSummaryTable$addColumnInfo(name = "nData", title = "Valid", type = "integer")
   overallSummaryTable$addColumnInfo(name = "missing", title = "Missing", type = "integer")
@@ -114,7 +116,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
     overallSummaryTable$transpose  <- T
 
   if(ready && options$overallControlSummaryTable)
-    .mVarContSummaryTableFill(overallSummaryTable,dataset,options)
+    overallSummaryTable <- .mVarContSummaryTableFill(overallSummaryTable,dataset,options)
 
   jaspResults[["mVarContMainContainer"]][["overallSummaryTable"]] <- overallSummaryTable
   return()
@@ -124,7 +126,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
 .mVarContSummaryTableFill <- function(overallSummaryTable,dataset,options,ready){
 
 
-  dataCoded <- .computeBoundsHelper(dataset)
+  dataCoded <- .computeBoundsHelper(dataset,options)
 
 
   #View(dataCoded)
@@ -133,19 +135,23 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
   dataResAll <- data.frame(
     variable = "All",
-    nData = sum(!is.na(dataCoded)),
-    missing = sum(is.na(dataCoded)),
-    outBoundNum = sum(dataCoded),
-    outBoundPerc = sum(dataCoded)/sum(!is.na(dataCoded))
+    nData = sum(!is.na(dataCoded),na.rm = T),
+    missing = sum(is.na(dataCoded),na.rm = T),
+    outBoundNum = sum(dataCoded,na.rm = T),
+    outBoundPerc = sum(dataCoded,na.rm = T)/sum(!is.na(dataCoded),na.rm = T)
   )
+
+
+ # stop(gettext(paste0("Models didn't work. Instead of prediction matrix we got:",one_step_pred)))
+
 
   for(var in colnames(dataCoded)){
     dataRes <- rbind(dataRes,
       c(variable = var,
-           nData = sum(!is.na(dataCoded[var])),
-           missing = sum(is.na(dataCoded[var])),
-           outBoundNum = sum(dataCoded[var]),
-           outBoundPerc = sum(dataCoded[var])/sum(!is.na(dataCoded[var]))
+           nData = sum(!is.na(dataCoded[var]),na.rm = T),
+           missing = sum(is.na(dataCoded[var]),na.rm = T),
+           outBoundNum = sum(dataCoded[var],na.rm = T),
+           outBoundPerc = sum(dataCoded[var],na.rm = T)/sum(!is.na(dataCoded[var]),na.rm = T)
       )
     )
   }
@@ -166,8 +172,9 @@ multiVarControl <- function(jaspResults, dataset, options) {
   for(col in colnames(dataRes)){
     overallSummaryTable$addColumns( col = dataRes[col])
   }
+  print("table created")
 
-  return()
+  return(overallSummaryTable)
 }
 
 
@@ -176,11 +183,13 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
   overallSummaryPlotContainer <- createJaspContainer(title = "Control Plots")
 
+  overallSummaryPlotContainer$dependOn(c("outBoundOverallPlotCheck","outBoundOverallPlotMetricChoice","outBoundOverallPlotLineType"))
+
   if(options$outBoundOverallPlotCheck)
     .mVarContSummaryPlotFill(overallSummaryPlotContainer,dataset,options)
 
-  if(options$summaryPlotIndividualVars)
-    .mVarContSummaryPlotFillSingle(overallSummaryPlotContainer,dataset,options)
+  #if(options$summaryPlotIndividualVars)
+  #  .mVarContSummaryPlotFillSingle(overallSummaryPlotContainer,dataset,options)
 
   jaspResults[["mVarContMainContainer"]][["overallSummaryPlotContainer"]] <- overallSummaryPlotContainer
 
@@ -191,10 +200,11 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
 .mVarContSummaryPlotFill <- function(overallSummaryPlotContainer,dataset,options){
 
-  overallPlot <- createJaspPlot("Overall Control Plot")
+  overallPlot <- createJaspPlot("Overall Control Plot", height = 480, width = 720)
 
 
-  dataCoded <- .computeBoundsHelper(dataset)
+  dataCoded <- .computeBoundsHelper(dataset,options)
+  #stop(gettext(dim(dataCoded)))
   dataCoded$all <- rowSums(dataCoded,na.rm = T)
   if(options$outBoundOverallPlotMetricChoice == "percent"){
     dataCoded$all <- dataCoded$all/length(options$variables)
@@ -241,15 +251,17 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
   multiVarBinomialContainer <- createJaspContainer("Binomial Control")
 
-  dataCoded <- .computeBoundsHelper(dataset)
+  multiVarBinomialContainer$dependOn(c("multiBinWindow","multiBinaryCheckPlot","multiBinomDraws"))
+  dataCoded <- .computeBoundsHelper(dataset,options)
 
   dataAggregated <- .aggregateBinomialData(dataCoded,options$multiBinWindow)
+
 
   .multiVarBinResultsHelper(jaspResults,dataAggregated,options)
   if(options$multiBinaryCheckPlot)
     .mVarContMultiBinomialPlot(jaspResults,dataAggregated,options,multiVarBinomialContainer)
 
-  jaspResults[["mVarContMainContainer"]] <- multiVarBinomialContainer
+  jaspResults[["mVarContMainContainer"]][["multiVarBinomialContainer"]] <- multiVarBinomialContainer
 
   return()
 }
@@ -262,8 +274,10 @@ multiVarControl <- function(jaspResults, dataset, options) {
                 sd_slope = bssm::halfnormal(0.5,2),
                 u=dataAggregated$u,
                 distribution = "binomial")
-  sample <- bssm::run_mcmc(mod, iter = options$multiBinomDraws,mcmc_type = "approx")
 
+  startProgressbar(1,label = "Running binomial state space model")
+  sample <- bssm::run_mcmc(mod, iter = options$multiBinomDraws,mcmc_type = "approx")
+  progressbarTick()
 
 
   multiVarBinomialResults$object <- list(model = mod,sample=sample,dat = dataAggregated)
@@ -277,7 +291,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
 .mVarContMultiBinomialPlot <- function(jaspResults,dataAggregated,options,multiVarBinomialContainer){
 
   titleSub <- ifelse(options$multiBinWindow > 1,paste(" - summary window:",options$multiBinWindow),"")
-  multiBinomialPlot <- createJaspPlot(title =paste0("Estimated mutivariate proportion",titleSub))
+  multiBinomialPlot <- createJaspPlot(title =paste0("Estimated mutivariate proportion",titleSub), height = 480, width = 720)
 
 
   predBssm <-  jaspResults[["multiVarBinomialResults"]]$object$sample
