@@ -6,39 +6,49 @@ import JASP.Widgets 1.0
 Form
 {
     VariablesForm
-    [
+    {
         AvailableVariablesList	{ name: "allVariablesList" }
         AssignedVariablesList	{ name: "variables";	title: qsTr("Control Variables");	suggestedColumns: ["scale"]}
-    ]
+    }
 
 
-    IntegerField{name: "previousDataPoints"; title: qsTr("Only show previous");defaultValue: 10000; afterLabel: "data points"}
+
+
+
+
+    IntegerField
+    {
+        name: "previousDataPoints"
+        Layout.columnSpan: 2
+        label: qsTr("Only show previous")
+        defaultValue: 10000
+        afterLabel: "data points"
+    }
 
 
     CheckBox
     {
         name: "overallControlSummaryTable"
-        title: qsTr("Overall control summary table")
+        Layout.columnSpan: 2
+        label: qsTr("Overall control summary table")
         checked: true
-        CheckBox(name : "transposeOverallTable"; title: qsTr("Transpose table"))
-        CheckBox{name: "orderTableByOutBound"; title: qsTr("Order table by error out-of-bound proportion")}
+        CheckBox{name : "transposeOverallTable"; label: qsTr("Transpose table")}
+        CheckBox{name: "orderTableByOutBound"; label: qsTr("Order table by error out-of-bound proportion")}
 
     }
+
+
+
+
 
     CheckBox
     {
         name: "outBoundOverallPlotCheck"
-        title qsTr("Overall control plot")
+        label: qsTr("Overall control plot")
+
         checked: true
-        CheckBox{name: "summaryPlotIndividualVars"; title: qsTr("plot individual variables")}
-        RadioButtonGroup
-        {
-            name: "outBoundOverallPlotMetricChoice"
-            title: qsTr("Out-of-control metric")
-            adioButtonsOnSameRow: true
-            RadioButton{value: "number"; title: qsTr("Number");checked: true}
-            RadioButton{value: "percent"; title: qsTr("Percent")}
-        }
+        //CheckBox{name: "summaryPlotIndividualVars"; label: qsTr("plot individual variables")}
+
         RadioButtonGroup
             	{
                 	name: "outBoundOverallPlotLineType"
@@ -47,6 +57,16 @@ Form
                 	RadioButton { value: "line";	label: qsTr("Line") }
                 	RadioButton { value: "both";	label: qsTr("Both");	checked: true }
             	}
+        RadioButtonGroup
+        {
+
+            name: "outBoundOverallPlotMetricChoice"
+            title: qsTr("Out-of-control metric")
+            radioButtonsOnSameRow: false
+            RadioButton{value: "number"; label: qsTr("Number");checked: true}
+            RadioButton{value: "percent"; label: qsTr("Percent")}
+        }
+
     }
     Section
     {
@@ -60,8 +80,8 @@ Form
             label: qsTr("Summarise after every")
             afterLabel: qsTr("data points")
         }
-        IntegerField{name: multiBinomDraws, defaultValue: 500}
-        
+        IntegerField{name: multiBinomDraws; defaultValue: 500}
+
         CheckBox
         {
             name: "multiBinaryCheckPlot"
