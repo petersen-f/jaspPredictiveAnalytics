@@ -302,7 +302,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
   yBreaks <- pretty(c(0,1))
   p <- ggplot2::ggplot(binomialSummary,ggplot2::aes(x = time, y = mean)) +
     ggplot2::geom_line() +
-    ggplot2::geom_point(ggplot2::aes(y=actual)) +
+    ggplot2::geom_point(ggplot2::aes(y=actual),size=0.5) +
     ggplot2::geom_ribbon(ggplot2::aes(ymin = lowerCI, ymax = higherCI),
                 fill = "blue", alpha = 0.25) +
     jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
