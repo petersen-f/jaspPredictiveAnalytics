@@ -18,4 +18,11 @@ Description
 	    func: "predictiveAnalytics"
 		qml: 'predictiveAnalytics.qml'
 	}
+
+	Analysis
+	{
+	    title: "Multi Variable Control"
+	    func: "multiVarControl"
+		qml: 'multiVarControl.qml'
+	}
 }
