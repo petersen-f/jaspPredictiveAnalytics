@@ -51,10 +51,10 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 .extractQuantiles <-function(state){
   data.frame(mean = colMeans(state,na.rm = T),
 
-                                                lowerCI = apply(state,2,quantile,probs= 0.025,na.rm = T),
-                                                higherCI= apply(state,2,quantile,probs= 0.975,na.rm = T),
-                                                time = 1:ncol(state)
-)
+             lowerCI = apply(state,2,quantile,probs= 0.025,na.rm = T),
+             higherCI= apply(state,2,quantile,probs= 0.975,na.rm = T),
+             time = 1:ncol(state)
+  )
 }
 .predanReadData <- function(options,ready) {
   if(!ready) return()
@@ -445,9 +445,9 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 .forecastVeriDependencies <- function(){
   return(c("forecastModelBstsSemiLocalCheck",
-             "forecastVerificationModelWindow",
-             "forecastVerificationDraws",
-             "modelsToPlot"))
+           "forecastVerificationModelWindow",
+           "forecastVerificationDraws",
+           "modelsToPlot"))
 }
 
 
@@ -526,8 +526,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   dataControl$outBoundArea[!is.na(dataControl$outBound)] <- ifelse(dataControl$y[!is.na(dataControl$outBound)] > upperLimit,"Above",ifelse(dataControl$y[!is.na(dataControl$outBound)] < lowerLimit,"Below","Inside"))
 
   dataControl$distance[!is.na(dataControl$outBound)] <- ifelse(dataControl$y[!is.na(dataControl$outBound)] > upperLimit,
-                                                       dataControl$y[!is.na(dataControl$outBound)] - upperLimit,
-                                                       dataControl$y[!is.na(dataControl$outBound)] - lowerLimit)
+                                                               dataControl$y[!is.na(dataControl$outBound)] - upperLimit,
+                                                               dataControl$y[!is.na(dataControl$outBound)] - lowerLimit)
 
 
   results <- list(dataControl = dataControl,
@@ -605,11 +605,11 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
-    predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720)
-    p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(time,y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
-      ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred") +
-      ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred") +
-      ggplot2::scale_color_manual(guide="none",values=c("#4E84C4","#D16103"))
+  predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720)
+  p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(time,y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
+    ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred") +
+    ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred") +
+    ggplot2::scale_color_manual(guide="none",values=c("#4E84C4","#D16103"))
 
 
   if(options$controlLineType %in% c("line","both"))
@@ -739,7 +739,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   p <- ggplot2::ggplot(dataControl,
                        ggplot2::aes(x= y,
-                  binwidth = 0.5))
+                                    binwidth = 0.5))
 
   if(!options$outlierHistogramDensity){
     p <- p + ggplot2::geom_histogram(mapping = ggplot2::aes(
@@ -780,7 +780,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   if(options$outlierHistogramDensity){
     p <- p + ggplot2::theme(axis.ticks.y = ggplot2::element_blank(),
-                     axis.text.y = ggplot2::element_blank())
+                            axis.text.y = ggplot2::element_blank())
   }
 
   histogramPlot$plotObject <- p
@@ -838,19 +838,19 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                                      max = max(x),
                                                      valid = sum(!is.na(x)),
                                                      missing = sum(is.na(x)))
-                                 ))
+                      ))
 
 
   tableResAll <- do.call(data.frame,
-                      aggregate( y ~ 1,
-                                 data = dataControl,
-                                 FUN = function(x) c(mean = mean(x),
-                                                     sd = sd(x),
-                                                     min = min(x),
-                                                     max = max(x),
-                                                     valid = sum(!is.na(x)),
-                                                     missing = sum(is.na(x)))
-                      ))
+                         aggregate( y ~ 1,
+                                    data = dataControl,
+                                    FUN = function(x) c(mean = mean(x),
+                                                        sd = sd(x),
+                                                        min = min(x),
+                                                        max = max(x),
+                                                        valid = sum(!is.na(x)),
+                                                        missing = sum(is.na(x)))
+                         ))
 
   tableResAll$outBoundArea = "All"
 
@@ -958,7 +958,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
     #TODO: insert depend on all boundary setting
     #if(options$binaryControlMethod=="state space")
-      predanBinaryBounds <- .predanBinaryStateSpaceResults(jaspResults,controlData,dataset,options)
+    predanBinaryBounds <- .predanBinaryStateSpaceResults(jaspResults,controlData,dataset,options)
     #else if (options$binaryControlMethod == "beta distribution")
 
     predanBinaryBoundsState$object <- predanBinaryBounds
@@ -976,12 +976,12 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   ss <- list()
   ss <- bsts::AddLocalLevel(ss,y,sigma.prior = Boom::SdPrior(sigma.guess = .1,
-                                                       sample.size = 1,
-                                                       upper.limit = 1),
+                                                             sample.size = 1,
+                                                             upper.limit = 1),
                             initial.state.prior = Boom::NormalPrior(0, 5))
 
   ts.model <- bsts::bsts(y , ss, niter = options$binaryStateSpaceNiter,
-                   family = "logit")
+                         family = "logit")
 
   return(ts.model)
 
@@ -1004,8 +1004,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   predanBinaryControlPlots$dependOn(c(.boundDependencies(),"binaryControlChartCheck"))
 
   #if(options$binaryControlMethod == "state space"){
-    tsModel <- jaspResults[["predanResults"]][["predanBinaryBounds"]]$object
-    .predanBinaryControlStateSpacePlot(jaspResults,predanBinaryControlPlots,tsModel,predanResults,dataset,options)
+  tsModel <- jaspResults[["predanResults"]][["predanBinaryBounds"]]$object
+  .predanBinaryControlStateSpacePlot(jaspResults,predanBinaryControlPlots,tsModel,predanResults,dataset,options)
   #}
 
 
@@ -1070,10 +1070,10 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 .predanControlPredictionResultsHelper <- function(jaspResults,controlData,dataset,options){
 
   oneStepPredMatrix <- .createPredictions(y = controlData$y[options$controlPredictionStart:options$controlPredictionEnd],
-                                         niter = options$predDraws,
-                                         full_pred = T,
-                                         model_function = .bstsModel,
-                                         mod = "trend")
+                                          niter = options$predDraws,
+                                          full_pred = T,
+                                          model_function = .bstsModel,
+                                          mod = "trend")
 
   fullModel <- .bstsModel(controlData$y[options$controlPredictionStart:options$controlPredictionEnd],
                           niter = 1000,mod = "trend")
@@ -1145,7 +1145,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
   p <- p + ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
-                                    plotLimit[[1]]))
+                                           plotLimit[[1]]))
 
   p <- p + ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred") +
     ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred")
@@ -1168,10 +1168,10 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   predanModelSelectionFit <- createJaspState()
   predanModelSelectionFit$dependOn(c("forecastModelBstsLocalLevelCheck",
-                                  "forecastModelBstsLinearTrendCheck",
-                                  "forecastModelBstsArCheck",
-                                  "forecastModelBstsSemiLocalCheck",
-                                  "selectedModels"))
+                                     "forecastModelBstsLinearTrendCheck",
+                                     "forecastModelBstsArCheck",
+                                     "forecastModelBstsSemiLocalCheck",
+                                     "selectedModels"))
 
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
   controlData <- predanResults[[1]]
@@ -1341,7 +1341,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
       modelList[[modelNames[j]]] <- .createPredictions(y = y,niter = options$forecastVerificationDraws,parallel = T,mod = modelNames[j],model_function = options$forecastVerificationModelWindow,k = k)
       #modelList[[modelNames[j]]] <-  cbind(matrix(NA,nrow = options$forecastVerificationDraws,ncol = k+1),modelList[[modelNames[j]]] )
       progressbarTick()
-      }
+    }
     # baselinemodels
 
     if("baselineVar" %in% modelNames)
@@ -1796,16 +1796,16 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                                                          niter = 500,modelWindow = 0,
                                                          modelsToCalculate = names(modelListForecast))
 
-  fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
+    fitBMAList <- jaspResults[["predanResults"]][["predanBMAResults"]]$object
 
-  fitBMAObject <- fitBMAList$fitBMAObject
-  fitBMAData <- fitBMAList$ensembleDataFrame
+    fitBMAObject <- fitBMAList$fitBMAObject
+    fitBMAData <- fitBMAList$ensembleDataFrame
 
-  futurePredictions <- .bmaFuturePrediction(fitBMAObject = fitBMAObject,
-                                               modelListFuturePredictions = modelListFuturePredictions,
-                                               weightWindow = options$modelWeightWindow,
-                                               limits = c(upperLimit,lowerLimit))
-  selectedModel <- "BMA"
+    futurePredictions <- .bmaFuturePrediction(fitBMAObject = fitBMAObject,
+                                              modelListFuturePredictions = modelListFuturePredictions,
+                                              weightWindow = options$modelWeightWindow,
+                                              limits = c(upperLimit,lowerLimit))
+    selectedModel <- "BMA"
 
   } else {
 
@@ -1827,9 +1827,9 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
     futurePredictions <- cbind(upperProb = 1- quantInvVec(t(futurePredictions),upperLimit),
-                                lowerProb = quantInvVec(t(futurePredictions),lowerLimit),
-                                .extractQuantiles(futurePredictions),
-                                model = selectedModel)
+                               lowerProb = quantInvVec(t(futurePredictions),lowerLimit),
+                               .extractQuantiles(futurePredictions),
+                               model = selectedModel)
   }
 
   if(options$checkBoxOutBoundProbabilities)
@@ -1858,9 +1858,9 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
                               overtitle = "Prediction Interval",format = "sf:4;dp:2")
 
   outBoundTable$addColumnInfo(name = "upperProb", title= "Upper bound", type = "number",
-                                    overtitle = "Out-of-bound Probability",format = "sf:4;dp:3")
+                              overtitle = "Out-of-bound Probability",format = "sf:4;dp:3")
   outBoundTable$addColumnInfo(name = "lowerProb", title= "Lower Bound", type = "number",
-                                    overtitle = "Out-of-bound Probability",format = "sf:4;dp:3")
+                              overtitle = "Out-of-bound Probability",format = "sf:4;dp:3")
 
 
   outBoundTable[["time"]] <- futurePredictions$time + nrow(controlData)
