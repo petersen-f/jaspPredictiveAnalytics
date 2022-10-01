@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2018 University of Amsterdam
+# Copyright (C) 2022 University of Amsterdam
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,6 +55,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
   if(is.null(jaspResults[["mVarContMainContainer"]])){
     mVarContMainContainer <- createJaspContainer(position = 1)
+    mVarContMainContainer$dependOn(c("variables","previousDataPoints"))
     jaspResults[["mVarContMainContainer"]] <- mVarContMainContainer
   }
  return()
@@ -110,7 +111,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
   overallSummaryTable$addColumnInfo(name = "nData", title = "Valid", type = "integer")
   overallSummaryTable$addColumnInfo(name = "missing", title = "Missing", type = "integer")
   overallSummaryTable$addColumnInfo(name = "outBoundNum", title = "Out-of-bound - Number", type = "integer")
-  overallSummaryTable$addColumnInfo(name = "outBoundPerc", title = "Out-of-bound - Percent", type = "number", format = "dp:3")
+  overallSummaryTable$addColumnInfo(name = "outBoundPerc", title = "Out-of-bound - Proportion", type = "number", format = "dp:3")
 
   if(options$transposeOverallTable)
     overallSummaryTable$transpose  <- T
@@ -183,7 +184,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
   overallSummaryPlotContainer <- createJaspContainer(title = "Control Plots")
 
-  overallSummaryPlotContainer$dependOn(c("outBoundOverallPlotCheck","outBoundOverallPlotMetricChoice","outBoundOverallPlotLineType"))
+  overallSummaryPlotContainer$dependOn(c("outBoundOverallPlotCheck","outBoundOverallPlotMetricChoice","outBoundOverallPlotLineType","outBoundOverallPlotJitterCheck"))
 
   if(options$outBoundOverallPlotCheck)
     .mVarContSummaryPlotFill(overallSummaryPlotContainer,dataset,options)
@@ -206,7 +207,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
   dataCoded <- .computeBoundsHelper(dataset,options)
   #stop(gettext(dim(dataCoded)))
   dataCoded$all <- rowSums(dataCoded,na.rm = T)
-  if(options$outBoundOverallPlotMetricChoice == "percent"){
+  if(options$outBoundOverallPlotMetricChoice == "proportion"){
     dataCoded$all <- dataCoded$all/length(options$variables)
     yTitle <- "Percent"
     yLim <- c(0,1)
@@ -232,6 +233,9 @@ multiVarControl <- function(jaspResults, dataset, options) {
     p <- p + ggplot2::geom_line(size=0.7)
   if(options$outBoundOverallPlotLineType %in% c("points","both"))
     p <- p + ggplot2::geom_point(size=0.5)
+
+  if(options$outBoundOverallPlotJitterCheck)
+    p <- p + ggplot2::geom_jitter(height = 0.5,width = 0,size=0.5)
 
   overallPlot$plotObject <- p
 

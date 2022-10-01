@@ -29,11 +29,11 @@ Form
     CheckBox
     {
         name: "overallControlSummaryTable"
-        Layout.columnSpan: 2
+        Layout.columnSpan: 1
         label: qsTr("Overall control summary table")
         checked: true
         CheckBox{name : "transposeOverallTable"; label: qsTr("Transpose table")}
-        CheckBox{name: "orderTableByOutBound"; label: qsTr("Order table by error out-of-bound proportion")}
+        CheckBox{name: "orderTableByOutBound"; label: qsTr("Order table by proportion")}
 
     }
 
@@ -53,10 +53,18 @@ Form
             	{
                 	name: "outBoundOverallPlotLineType"
                 	radioButtonsOnSameRow: true
+                    id: overollPlotType
                 	RadioButton { value: "points";	label: qsTr("Points") }
                 	RadioButton { value: "line";	label: qsTr("Line") }
                 	RadioButton { value: "both";	label: qsTr("Both");	checked: true }
             	}
+
+                CheckBox
+                {
+                    name: "outBoundOverallPlotJitterCheck"
+                    label: qsTr("Add Jitter")
+                    enabled : overollPlotType.value == "points" || overollPlotType.value == "both"
+                }
         RadioButtonGroup
         {
 
@@ -64,13 +72,14 @@ Form
             title: qsTr("Out-of-control metric")
             radioButtonsOnSameRow: false
             RadioButton{value: "number"; label: qsTr("Number");checked: true}
-            RadioButton{value: "percent"; label: qsTr("Percent")}
+            RadioButton{value: "proportion"; label: qsTr("Proportion")}
         }
+
 
     }
     Section
     {
-        title: qsTr("Multivariate Binomial Control")
+        title: qsTr("Proportion estimation")
 
         IntegerField
         {
@@ -80,7 +89,7 @@ Form
             label: qsTr("Summarise after every")
             afterLabel: qsTr("data points")
         }
-        IntegerField{name: "multiBinomDraws"; defaultValue: 500; label: qsTr("MCMC draws")}
+        IntegerField{name: "multiBinomDraws"; defaultValue: 100; label: qsTr("MCMC draws")}
 
         CheckBox
         {

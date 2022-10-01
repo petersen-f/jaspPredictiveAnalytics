@@ -21,7 +21,7 @@ Description
 
 	Analysis
 	{
-	    title: "Multi Variable Control"
+	    title: "Multivariate Binomial Control"
 	    func: "multiVarControl"
 		qml: 'multiVarControl.qml'
 	}
