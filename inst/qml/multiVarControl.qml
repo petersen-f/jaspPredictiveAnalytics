@@ -98,4 +98,23 @@ Form
             checked: true
         }
     }
+    Section
+    {
+        title: qsTr("Prediction")
+
+        IntegerField
+        {
+            name: "predictionHorizon"
+            Layout.columnSpan: 2
+            id: predictionHorizon
+            defaultValue: 0
+            label: qsTr("Prediction horizon")
+        }
+        CheckBox
+        {
+            name: "predictionTimePlot"
+            label: qsTr("Plot predictions")
+            enabled: predictionHorizon.value > 0
+        }
+    }
 }
