@@ -326,9 +326,12 @@ multiVarControl <- function(jaspResults, dataset, options) {
                                         data = sampleSummary,
                                         FUN = function(x) c(mean = mean(x),
                                                             lowerCI = quantile(x,probs= 0.025),
-                                                            higherCI= quantile(x,probs= 0.975))
+                                                            higherCI= quantile(x,probs= 0.975),
+                                                            number = mean(x)*max(dataAggregated$u),
+                                                            lowerNumber = quantile(x,probs= 0.025)*max(dataAggregated$u),
+                                                            higherNumber = quantile(x,probs= 0.975)*max(dataAggregated$u))
                              ))
-  colnames(binomialSummary) <- c("time","mean","lowerCI","higherCI")
+  colnames(binomialSummary) <- c("time","mean","lowerCI","higherCI","number","lowerNumber","higherNumber")
 
   binomialSummary <- binomialSummary[1:nrow(binomialSummary)-1,]
   binomialSummary$actual <- dataAggregated$all/dataAggregated$u
@@ -360,10 +363,13 @@ multiVarControl <- function(jaspResults, dataset, options) {
                                         data = futurePredictions,
                                         FUN = function(x) c(mean = mean(x),
                                                             lowerCI = quantile(x,probs= 0.025),
-                                                            higherCI= quantile(x,probs= 0.975))
+                                                            higherCI= quantile(x,probs= 0.975),
+                                                            number = mean(x)*max(dataAggregated$u),
+                                                            lowerNumber = quantile(x,probs= 0.025)*max(dataAggregated$u),
+                                                            higherNumber = quantile(x,probs= 0.975)*max(dataAggregated$u))
                              ))
 
-  colnames(futureSummary) <- c("time","mean","lowerCI","higherCI")
+  colnames(futureSummary) <- c("time","mean","lowerCI","higherCI","number","lowerNumber","higherNumber")
   futureSummary$actual = NA
 
   futureSummary$time <- futureSummary$time + nrow(dataAggregated)
@@ -433,7 +439,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
     #ggplot2::ylab(yTitle) +
     ggplot2::scale_y_continuous("Proportion",breaks = yBreaks,limits = c(0,1)) +
     ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1)) +
-    ggplot2::geom_vline(xintercept = nrow(binomialSummary))
+    ggplot2::geom_vline(xintercept = nrow(binomialSummary),linetype = "dashed")
 
   predictionPlot$plotObject <- p
 
@@ -444,12 +450,40 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
 
 .mVarContMultiBinomialPredictionTables <- function(jaspResults,options,ready){
+  if(!options$predictionTimeTable || !is.null(jaspResults[["mVarContMainContainer"]][["predictionTable"]])) return()
 
+  predictionTable <- createJaspTable(title = "PredictionTable",dependencies = c(.multiVarModelDependencies(),.multiVarPredictionDependencies()))
+  predictionTable$dependOn("predictionTableNumber")
+  predictionTable$addColumnInfo(name = "time", title = "Time", type = "integer")
+  predictionTable$addColumnInfo(name = "proportion", title = "Proportion", type = "integer", format = "dp:3")
 
+  predictionTable$addColumnInfo(name = "lower", title = "Lower", type = "number",overtitle = "Proportion Prediction Interval", format = "dp:2")
+  predictionTable$addColumnInfo(name = "upper", title = "Upper", type = "number",overtitle = "Proportion Prediction Interval", format = "dp:2")
 
+  if(options$predictionTableNumber){
+    predictionTable$addColumnInfo(name = "number", title = "Number", type = "integer", format = "dp:2")
+    predictionTable$addColumnInfo(name = "lowerNumber", title = "Lower", type = "integer",overtitle = "Number Prediction Interval", format = "dp:2")
+    predictionTable$addColumnInfo(name = "upperNumber", title = "Upper", type = "integer",overtitle = "Number Prediction Interval", format = "dp:2")
+  }
+  .mVarContVarContMultiBinomialPredictionTablesFill(jaspResults,options,predictionTable)
 
   return()
 }
 
+.mVarContVarContMultiBinomialPredictionTablesFill <- function(jaspResults,options,predictionTable){
+  futureSummary <- jaspResults[["binomialPredictions"]]$object$futureSummary
+
+  predictionTable[["time"]] <- futureSummary$time
+  predictionTable[["proportion"]] <- futureSummary$mean
+  predictionTable[["lower"]] <- futureSummary$lowerCI
+  predictionTable[["upper"]] <- futureSummary$higherCI
+  if(options$predictionTableNumber){
+    predictionTable[["number"]] <- futureSummary$number
+    predictionTable[["lowerNumber"]] <- futureSummary$lowerNumber
+    predictionTable[["upperNumber"]] <- futureSummary$higherNumber
+  }
+  jaspResults[["mVarContMainContainer"]][["predictionTable"]] <- predictionTable
+  return()
+}
 
 

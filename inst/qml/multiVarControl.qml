@@ -113,8 +113,15 @@ Form
         CheckBox
         {
             name: "predictionTimePlot"
-            label: qsTr("Plot predictions")
+            label: qsTr("Forecast plot")
             enabled: predictionHorizon.value > 0
+        }
+        CheckBox
+        {
+            name: "predictionTimeTable"
+            label: qsTr("Prediction table")
+            enabled: predictionHorizon.value > 0
+            CheckBox{name: "predictionTableNumber",label: qsTr("show predicted number")}
         }
     }
 }
