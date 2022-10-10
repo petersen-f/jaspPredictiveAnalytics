@@ -64,6 +64,7 @@ Form
                     name: "outBoundOverallPlotJitterCheck"
                     label: qsTr("Add Jitter")
                     enabled : overollPlotType.value == "points" || overollPlotType.value == "both"
+                    checked:  !overollPlotType.value == "line"
                 }
         RadioButtonGroup
         {
@@ -121,7 +122,7 @@ Form
             name: "predictionTimeTable"
             label: qsTr("Prediction table")
             enabled: predictionHorizon.value > 0
-            CheckBox{name: "predictionTableNumber",label: qsTr("show predicted number")}
+            CheckBox{name: "predictionTableNumber";label: qsTr("show predicted number")}
         }
     }
 }
