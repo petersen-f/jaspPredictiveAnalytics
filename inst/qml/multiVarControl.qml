@@ -27,19 +27,17 @@ Form
     }
 
 
+
     CheckBox
     {
         name: "overallControlSummaryTable"
         Layout.columnSpan: 1
         label: qsTr("Overall control summary table")
         checked: true
+        CheckBox{name: "orderTableByOutBound"; label: qsTr("Order table by proportion"); checked: true}
         CheckBox{name : "transposeOverallTable"; label: qsTr("Transpose table")}
-        CheckBox{name: "orderTableByOutBound"; label: qsTr("Order table by proportion")}
 
     }
-
-
-
 
 
     CheckBox
@@ -48,6 +46,7 @@ Form
         label: qsTr("Overall control plot")
 
         checked: true
+        Layout.rowSpan: 2
         //CheckBox{name: "summaryPlotIndividualVars"; label: qsTr("plot individual variables")}
 
         RadioButtonGroup
@@ -63,7 +62,7 @@ Form
                 CheckBox
                 {
                     name: "outBoundOverallPlotJitterCheck"
-                    label: qsTr("Add Jitter")
+                    label: qsTr("Add jitter")
                     enabled : overollPlotType.value == "points" || overollPlotType.value == "both"
                     checked:  !overollPlotType.value == "line"
                 }
@@ -71,17 +70,22 @@ Form
         {
 
             name: "outBoundOverallPlotMetricChoice"
-            title: qsTr("Out-of-control metric")
+            title: qsTr("Out-of-bound metric")
             radioButtonsOnSameRow: false
             RadioButton{value: "number"; label: qsTr("Number");checked: true}
             RadioButton{value: "proportion"; label: qsTr("Proportion")}
         }
-
+    }
+    Group
+    {
+        title: qsTr("Proportion limits for reporting")
+        DoubleField{name: "estimatedLimit"; defaultValue: 0.2; label: qsTr("Estimation limit")}
+        DoubleField{name: "predictionLimit"; defaultValue: 0.2; label: qsTr("Prediction limit")}
 
     }
     Section
     {
-        title: qsTr("Proportion estimation")
+        title: qsTr("Proportion Estimation")
 
         IntegerField
         {
@@ -99,13 +103,7 @@ Form
             label: qsTr("Multivariate binary control plot")
             checked: true
         }
-        Group
-        {
-            title: qsTr("Proportion boundaries for reporting")
-            DoubleField{name: "estimatedLimit"; defaultValue: 0.2; label: qsTr("Estimation limit")}
-            DoubleField{name: "predictionLimit"; defaultValue: 0.2; label: qsTr("Prediction limit")}
 
-        }
 
 
     }
@@ -118,12 +116,13 @@ Form
             name: "predictionHorizon"
             Layout.columnSpan: 2
             id: predictionHorizon
-            defaultValue: 0
+            defaultValue: 500
             label: qsTr("Prediction horizon")
         }
         CheckBox
         {
             name: "predictionTimePlot"
+            checked: true
             label: qsTr("Forecast plot")
             enabled: predictionHorizon.value > 0
         }
@@ -131,9 +130,10 @@ Form
         {
             name: "predictionTimeTable"
             label: qsTr("Prediction table")
+            checked: true
             enabled: predictionHorizon.value > 0
             CheckBox{name: "predictionTableNumber";label: qsTr("Show predicted number")}
-            IntegerField{name: "binTable"; defaultValue: 1; min:1; label: qsTr("Bin predictions every");afterLabel: "data points"}
+            IntegerField{name: "binTable"; defaultValue: predictionHorizon.value/10; min:1;max: predictionHorizon.value; label: qsTr("Bin predictions every");afterLabel: "data points"}
 
         }
     }
