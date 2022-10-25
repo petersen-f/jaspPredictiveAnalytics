@@ -428,6 +428,22 @@ multiVarControl <- function(jaspResults, dataset, options) {
   xBreaks <- pretty(combinedSummary$time)
   yBreaks <- pretty(c(0,1))
 
+
+  jaspResults[["mVarContMainContainer"]][["predictionHtml"]] <- createJaspHtml(
+    text = ifelse(any(futureSummary$mean > options$predictionLimit),
+                  gettextf('
+                           <p style="color:tomato;"><b>This is a warning!</b></p>
+                           <p>Error proportion limit of %#.2f crossed in %x data points. At this point on average %#.2f data points will be out of control with an lower limit of %#.2f and an upper limit of %#.2f </p>
+                           ',options$predictionLimit,
+                           which(futureSummary$mean > options$predictionLimit),
+                           futureSummary$number[which(futureSummary$mean > options$predictionLimit)],
+                           futureSummary$lowerNumber[which(futureSummary$mean > options$predictionLimit)],
+                           futureSummary$higherNumber[which(futureSummary$mean > options$predictionLimit)]),
+                  gettextf('<p ">All is okay</p>')
+                  )
+    )
+
+
   p <- ggplot2::ggplot(combinedSummary,ggplot2::aes(x = time, y = mean)) +
     ggplot2::geom_line() +
     ggplot2::geom_point(ggplot2::aes(y=actual),size=0.5) +
@@ -453,8 +469,10 @@ multiVarControl <- function(jaspResults, dataset, options) {
   if(!options$predictionTimeTable || !is.null(jaspResults[["mVarContMainContainer"]][["predictionTable"]])) return()
 
   predictionTable <- createJaspTable(title = "PredictionTable",dependencies = c(.multiVarModelDependencies(),.multiVarPredictionDependencies()))
-  predictionTable$dependOn("predictionTableNumber")
-  predictionTable$addColumnInfo(name = "time", title = "Time", type = "integer")
+  predictionTable$dependOn(c("predictionTableNumber","binTable"))
+
+  if(options$binTable > 1) predictionTable$addColumnInfo(name = "bins", title = "Bin", type= "string")
+  if(options$binTable == 1) predictionTable$addColumnInfo(name = "time", title = "Time", type = "integer")
   predictionTable$addColumnInfo(name = "proportion", title = "Proportion", type = "integer", format = "dp:3")
 
   predictionTable$addColumnInfo(name = "lower", title = "Lower", type = "number",overtitle = "Proportion Prediction Interval", format = "dp:2")
@@ -464,6 +482,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
     predictionTable$addColumnInfo(name = "number", title = "Number", type = "integer", format = "dp:2")
     predictionTable$addColumnInfo(name = "lowerNumber", title = "Lower", type = "integer",overtitle = "Number Prediction Interval", format = "dp:2")
     predictionTable$addColumnInfo(name = "upperNumber", title = "Upper", type = "integer",overtitle = "Number Prediction Interval", format = "dp:2")
+    if(options$binTable > 1) predictionTable$addColumnInfo(name = "totalN", title = "Total Num", type= "string")
   }
   .mVarContVarContMultiBinomialPredictionTablesFill(jaspResults,options,predictionTable)
 
@@ -473,14 +492,40 @@ multiVarControl <- function(jaspResults, dataset, options) {
 .mVarContVarContMultiBinomialPredictionTablesFill <- function(jaspResults,options,predictionTable){
   futureSummary <- jaspResults[["binomialPredictions"]]$object$futureSummary
 
-  predictionTable[["time"]] <- futureSummary$time
+  if(options$binTable > 1){
+    breaks <- seq(min(futureSummary$time),max(futureSummary$time),options$binTable)
+    labels <- paste(head(breaks, -1), tail(breaks, -1), sep = '-')
+    futureSummary$bins <- cut(futureSummary$time,breaks,labels)
+
+    futureSummary <- as.data.frame(t(sapply(split(futureSummary,futureSummary$bins),function(x) c(bins = x$bins[1],
+                                                                                                  time =x$time[1],
+                                                                                                  mean = mean(x$mean),
+                                                                                                  lowerCI = mean(x$lowerCI),
+                                                                                                  higherCI = mean(x$higherCI),
+                                                                                                  total = length(options$variables)*length(x$time)))))
+
+
+
+
+
+    futureSummary$number  <- futureSummary$total*futureSummary$mean
+    futureSummary$lowerNumber   <- futureSummary$total*futureSummary$lowerCI
+    futureSummary$higherNumber    <- futureSummary$total*futureSummary$higherCI
+
+    futureSummary$bins <- labels
+  }
+
+  if(options$binTable > 1) predictionTable[["bins"]] <- futureSummary$bins
+  if(options$binTable == 1) predictionTable[["time"]] <- futureSummary$time
   predictionTable[["proportion"]] <- futureSummary$mean
   predictionTable[["lower"]] <- futureSummary$lowerCI
   predictionTable[["upper"]] <- futureSummary$higherCI
+
   if(options$predictionTableNumber){
     predictionTable[["number"]] <- futureSummary$number
     predictionTable[["lowerNumber"]] <- futureSummary$lowerNumber
     predictionTable[["upperNumber"]] <- futureSummary$higherNumber
+    if(options$binTable>1) predictionTable[["totalN"]] <- futureSummary$total
   }
   jaspResults[["mVarContMainContainer"]][["predictionTable"]] <- predictionTable
   return()

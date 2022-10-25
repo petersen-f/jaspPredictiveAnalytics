@@ -23,6 +23,7 @@ Form
         label: qsTr("Only show previous")
         defaultValue: 10000
         afterLabel: "data points"
+
     }
 
 
@@ -90,7 +91,7 @@ Form
             label: qsTr("Summarise after every")
             afterLabel: qsTr("data points")
         }
-        IntegerField{name: "multiBinomDraws"; defaultValue: 100; label: qsTr("MCMC draws")}
+        IntegerField{name: "multiBinomDraws"; defaultValue: 500; label: qsTr("MCMC draws")}
 
         CheckBox
         {
@@ -98,6 +99,15 @@ Form
             label: qsTr("Multivariate binary control plot")
             checked: true
         }
+        Group
+        {
+            title: qsTr("Proportion boundaries for reporting")
+            DoubleField{name: "estimatedLimit"; defaultValue: 0.2; label: qsTr("Estimation limit")}
+            DoubleField{name: "predictionLimit"; defaultValue: 0.2; label: qsTr("Prediction limit")}
+
+        }
+
+
     }
     Section
     {
@@ -122,7 +132,9 @@ Form
             name: "predictionTimeTable"
             label: qsTr("Prediction table")
             enabled: predictionHorizon.value > 0
-            CheckBox{name: "predictionTableNumber";label: qsTr("show predicted number")}
+            CheckBox{name: "predictionTableNumber";label: qsTr("Show predicted number")}
+            IntegerField{name: "binTable"; defaultValue: 1; min:1; label: qsTr("Bin predictions every");afterLabel: "data points"}
+
         }
     }
 }
