@@ -16,7 +16,6 @@ Imports:
   parallel,
   bssm,
   precrec,
-  scoringutils,
   future,
   future.apply,
   reshape2,

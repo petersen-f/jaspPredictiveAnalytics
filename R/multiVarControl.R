@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2018 University of Amsterdam
+# Copyright (C) 2022 University of Amsterdam
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,6 +29,10 @@ multiVarControl <- function(jaspResults, dataset, options) {
   .mVarContSummaryPlot(jaspResults,ready,dataset,options)
 
   .mVarContMultiBinomialHelper(jaspResults,ready,dataset,options)
+
+  .mVarContMultiBinomialPlot(jaspResults,options,ready)
+  .mVarContMultiBinomialPredictionPlot(jaspResults,options,ready)
+  .mVarContMultiBinomialPredictionTables(jaspResults,options,ready)
 }
 
 .mVarConReadData <- function(dataset,options){
@@ -51,14 +55,38 @@ multiVarControl <- function(jaspResults, dataset, options) {
 }
 
 .mVarContContainerHelper <- function(jaspResults,ready,dataset,options){
-  if(!ready) return()
+  #if(!ready) return()
 
   if(is.null(jaspResults[["mVarContMainContainer"]])){
     mVarContMainContainer <- createJaspContainer(position = 1)
+    mVarContMainContainer$dependOn(c("variables","previousDataPoints"))
     jaspResults[["mVarContMainContainer"]] <- mVarContMainContainer
   }
  return()
 }
+
+##### Dependency functions
+
+.multiVarModelDependencies <- function(){
+  return(c("variables",
+           "previousDataPoints",
+           "multiBinWindow",
+           "multiBinomDraws"
+           )
+  )
+}
+
+
+.multiVarPredictionDependencies <- function(){
+  return(c("predictionHorizon"))
+}
+
+
+
+
+
+
+
 
 ##### Helper functions
 
@@ -99,10 +127,10 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
 
 .mVarContSummaryTable <- function(jaspResults,ready,dataset,options){
-  if(!is.null(jaspResults[["mVarContMainContainer"]][["overallSummaryTable"]]) || !ready) return()
+  if(!is.null(jaspResults[["mVarContMainContainer"]][["overallSummaryTable"]])) return()
 
 
-  overallSummaryTable <- createJaspTable(title = "Control Summary Table")
+  overallSummaryTable <- createJaspTable(title = "Control Summary Table",position = 1)
 
   overallSummaryTable$dependOn(c("variables","overallControlSummaryTable","transposeOverallTable","orderTableByOutBound"))
 
@@ -110,7 +138,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
   overallSummaryTable$addColumnInfo(name = "nData", title = "Valid", type = "integer")
   overallSummaryTable$addColumnInfo(name = "missing", title = "Missing", type = "integer")
   overallSummaryTable$addColumnInfo(name = "outBoundNum", title = "Out-of-bound - Number", type = "integer")
-  overallSummaryTable$addColumnInfo(name = "outBoundPerc", title = "Out-of-bound - Percent", type = "number", format = "dp:3")
+  overallSummaryTable$addColumnInfo(name = "outBoundPerc", title = "Out-of-bound - Proportion", type = "number", format = "dp:3")
 
   if(options$transposeOverallTable)
     overallSummaryTable$transpose  <- T
@@ -181,9 +209,12 @@ multiVarControl <- function(jaspResults, dataset, options) {
 .mVarContSummaryPlot <- function(jaspResults,ready,dataset,options){
   if(!is.null(jaspResults[["mVarContMainContainer"]][["overallSummaryPlotContainer"]]) || !ready) return()
 
-  overallSummaryPlotContainer <- createJaspContainer(title = "Control Plots")
+  overallSummaryPlotContainer <- createJaspContainer(title = "Control Plots",position = 2)
 
-  overallSummaryPlotContainer$dependOn(c("outBoundOverallPlotCheck","outBoundOverallPlotMetricChoice","outBoundOverallPlotLineType"))
+  overallSummaryPlotContainer$dependOn(c("outBoundOverallPlotCheck",
+                                         "outBoundOverallPlotMetricChoice",
+                                         "outBoundOverallPlotLineType",
+                                         "outBoundOverallPlotJitterCheck"))
 
   if(options$outBoundOverallPlotCheck)
     .mVarContSummaryPlotFill(overallSummaryPlotContainer,dataset,options)
@@ -200,18 +231,18 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
 .mVarContSummaryPlotFill <- function(overallSummaryPlotContainer,dataset,options){
 
-  overallPlot <- createJaspPlot("Overall Control Plot", height = 480, width = 720)
+  overallPlot <- createJaspPlot("Overall Control Plot", height = 480, width = 720,position = 2)
 
 
   dataCoded <- .computeBoundsHelper(dataset,options)
   #stop(gettext(dim(dataCoded)))
   dataCoded$all <- rowSums(dataCoded,na.rm = T)
-  if(options$outBoundOverallPlotMetricChoice == "percent"){
+  if(options$outBoundOverallPlotMetricChoice == "proportion"){
     dataCoded$all <- dataCoded$all/length(options$variables)
-    yTitle <- "Percent"
+    yTitle <- "Out-of-bound Percent"
     yLim <- c(0,1)
   } else {
-    yTitle <- "Number"
+    yTitle <- "Out-of-bound Number"
     yLim <- c(0,length(options$variables))
   }
   dataCoded$time <- dataset$time
@@ -233,6 +264,9 @@ multiVarControl <- function(jaspResults, dataset, options) {
   if(options$outBoundOverallPlotLineType %in% c("points","both"))
     p <- p + ggplot2::geom_point(size=0.5)
 
+  if(options$outBoundOverallPlotJitterCheck)
+    p <- p + ggplot2::geom_jitter(height = 0.5,width = 0,size=0.5)
+
   overallPlot$plotObject <- p
 
   overallSummaryPlotContainer[["overallPlot"]] <- overallPlot
@@ -247,27 +281,36 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
 
 .mVarContMultiBinomialHelper <- function(jaspResults,ready,dataset,options){
-  if(!is.null(jaspResults[["mVarContMainContainer"]][["multiVarBinomialContainer"]]) || !ready) return()
+  if(!ready) return()
 
-  multiVarBinomialContainer <- createJaspContainer("Binomial Control")
+  if(is.null(jaspResults[["binomialResults"]])){
 
-  multiVarBinomialContainer$dependOn(c("multiBinWindow","multiBinaryCheckPlot","multiBinomDraws"))
-  dataCoded <- .computeBoundsHelper(dataset,options)
+    binomialResults <- createJaspState()
 
-  dataAggregated <- .aggregateBinomialData(dataCoded,options$multiBinWindow)
+    binomialResults$dependOn(.multiVarModelDependencies())
+    dataCoded <- .computeBoundsHelper(dataset,options)
+
+    dataAggregated <- .aggregateBinomialData(dataCoded,options$multiBinWindow)
 
 
-  .multiVarBinResultsHelper(jaspResults,dataAggregated,options)
-  if(options$multiBinaryCheckPlot)
-    .mVarContMultiBinomialPlot(jaspResults,dataAggregated,options,multiVarBinomialContainer)
+    binomialResults$object <- .multiVarBinResultsHelper(jaspResults,dataAggregated,options)
+    jaspResults[["binomialResults"]] <- binomialResults
+  }
 
-  jaspResults[["mVarContMainContainer"]][["multiVarBinomialContainer"]] <- multiVarBinomialContainer
+
+  if(options$predictionHorizon > 0 && is.null(jaspResults[["binomialPredictions"]])){
+
+    binomialPredictions <- createJaspState(dependencies =c(.multiVarPredictionDependencies(),.multiVarModelDependencies()))
+    binomialPredictions$object <- .multiVarBinPredictionsHelper(jaspResults,options)
+    jaspResults[["binomialPredictions"]] <- binomialPredictions
+  }
+
+  #jaspResults[["mVarContMainContainer"]][["multiVarBinomialContainer"]] <- multiVarBinomialContainer
 
   return()
 }
 
 .multiVarBinResultsHelper <-function(jaspResults,dataAggregated,options){
-  multiVarBinomialResults <- createJaspState()
 
   mod <- bssm::bsm_ng(y=dataAggregated$all,
                 sd_level = bssm::halfnormal(0.5,2),
@@ -277,39 +320,97 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
   startProgressbar(1,label = "Running binomial state space model")
   sample <- bssm::run_mcmc(mod, iter = options$multiBinomDraws,mcmc_type = "approx")
+
+
+  sampleSummary <- subset(as.data.frame(sample,variable = "states"),variable == "level")
+  sampleSummary$value <- plogis(sampleSummary$value)
+  binomialSummary <- do.call(data.frame,
+                             aggregate( value ~ time,
+                                        data = sampleSummary,
+                                        FUN = function(x) c(mean = mean(x),
+                                                            lowerCI = quantile(x,probs= 0.025),
+                                                            higherCI= quantile(x,probs= 0.975),
+                                                            number = mean(x)*max(dataAggregated$u),
+                                                            lowerNumber = quantile(x,probs= 0.025)*max(dataAggregated$u),
+                                                            higherNumber = quantile(x,probs= 0.975)*max(dataAggregated$u))
+                             ))
+  colnames(binomialSummary) <- c("time","mean","lowerCI","higherCI","number","lowerNumber","higherNumber")
+
+  binomialSummary <- binomialSummary[1:nrow(binomialSummary)-1,]
+  binomialSummary$actual <- dataAggregated$all/dataAggregated$u
   progressbarTick()
 
+  return(list(model = mod, sample=sample, dat = dataAggregated,binomialSummary = binomialSummary))
+}
 
-  multiVarBinomialResults$object <- list(model = mod,sample=sample,dat = dataAggregated)
-  jaspResults[["multiVarBinomialResults"]] <- multiVarBinomialResults
-  return()
+
+.multiVarBinPredictionsHelper <- function(jaspResults,options){
+
+
+  binomialResults <-  jaspResults[["binomialResults"]]$object
+  mod <- binomialResults$mod
+  sample <- binomialResults$sample
+  dataAggregated <- binomialResults$dat
+
+  modFuture <- mod
+  modFuture$y <- rep(NA,options$predictionHorizon)
+
+  futurePredictions <- predict(sample,modFuture, type = "mean",
+                         nsim = options$multiBinomDraws/2,future = T)
+
+  #sampleSummary <- subset(as.data.frame(sample,variable = "states"),variable == "level")
+
+  #sampleSummary$value <- plogis(sampleSummary$value)
+  futureSummary <- do.call(data.frame,
+                             aggregate( value ~ time,
+                                        data = futurePredictions,
+                                        FUN = function(x) c(mean = mean(x),
+                                                            lowerCI = quantile(x,probs= 0.025),
+                                                            higherCI= quantile(x,probs= 0.975),
+                                                            number = mean(x)*max(dataAggregated$u),
+                                                            lowerNumber = quantile(x,probs= 0.025)*max(dataAggregated$u),
+                                                            higherNumber = quantile(x,probs= 0.975)*max(dataAggregated$u))
+                             ))
+
+  colnames(futureSummary) <- c("time","mean","lowerCI","higherCI","number","lowerNumber","higherNumber")
+  futureSummary$actual = NA
+
+  futureSummary$time <- futureSummary$time + nrow(dataAggregated)
+
+  return(list(futurePredictions= futurePredictions,futureSummary = futureSummary))
+
 }
 
 
 
 
-.mVarContMultiBinomialPlot <- function(jaspResults,dataAggregated,options,multiVarBinomialContainer){
-
+.mVarContMultiBinomialPlot <- function(jaspResults,options,ready){
+  if(!ready || !options$multiBinaryCheckPlot)  return()
   titleSub <- ifelse(options$multiBinWindow > 1,paste(" - summary window:",options$multiBinWindow),"")
-  multiBinomialPlot <- createJaspPlot(title =paste0("Estimated mutivariate proportion",titleSub), height = 480, width = 720)
+  multiBinomialPlot <- createJaspPlot(title =paste0("Estimated Multivariate Proportion",titleSub), height = 480, width = 720,
+                                        dependencies = c("predictionTimePlot"),position = 4)
 
 
-  predBssm <-  jaspResults[["multiVarBinomialResults"]]$object$sample
+  binomialResults <-  jaspResults[["binomialResults"]]$object
+  sample <- binomialResults$sample
+  dataAggregated <- binomialResults$dat
+  binomialSummary <- binomialResults$binomialSummary
 
+  limitReached <- binomialSummary$mean > options$estimatedLimit
 
-  predBssm <- subset(as.data.frame(predBssm,variable = "states"),variable == "level")
-  predBssm$value <- plogis(predBssm$value)
-  binomialSummary <- do.call(data.frame,
-                             aggregate( value ~ time,
-                                        data = predBssm,
-                                        FUN = function(x) c(mean = mean(x),
-                                                            lowerCI = quantile(x,probs= 0.025),
-                                                            higherCI= quantile(x,probs= 0.975))
-                             ))
-  colnames(binomialSummary) <- c("time","mean","lowerCI","higherCI")
-
-  binomialSummary <- binomialSummary[1:nrow(binomialSummary)-1,]
-  binomialSummary$actual <- dataAggregated$all/dataAggregated$u
+  jaspResults[["mVarContMainContainer"]][["estimationHtml"]] <- createJaspHtml(
+    text = ifelse(any(limitReached) & options$estimatedLimit > 0,
+                  gettextf('
+                           <p style="color:tomato;"><b>This is a warning!</b></p>
+                           Error proportion limit of %#.2f is crossed for the first time at data point %i in the estimation period. At this point on average %#.2f data points are estimates to be out of control with an lower limit of %#.2f and an upper limit of %#.2f </p>
+                           ',options$estimatedLimit,
+                           binomialSummary$time[which(limitReached)[1]],
+                           binomialSummary$number[which(limitReached)[1]],
+                           binomialSummary$lowerNumber[which(limitReached)[1]],
+                           binomialSummary$higherNumber[which(limitReached)[1]]),
+                  gettextf('<p ">No warning. The limit of %#.2f is not crossed during the estimation period.</p>',options$estimatedLimit)
+    ),position = 3
+  )
 
 
   xBreaks <- pretty(binomialSummary$time)
@@ -326,15 +427,137 @@ multiVarControl <- function(jaspResults, dataset, options) {
     ggplot2::scale_y_continuous("Proportion",breaks = yBreaks,limits = c(0,1)) +
     ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
 
+  if(options$estimatedLimit > 0)
+    p <- p + ggplot2::geom_hline(yintercept = options$estimatedLimit,linetype="dashed",color="darkred")
+
   multiBinomialPlot$plotObject <- p
 
-  multiVarBinomialContainer[["multiBinomialPlot"]] <- multiBinomialPlot
+  jaspResults[["mVarContMainContainer"]][["multiBinomialPlot"]] <- multiBinomialPlot
 
   return()
 }
 
+.mVarContMultiBinomialPredictionPlot <- function(jaspResults,options,ready){
+  if( !ready || !options$predictionTimePlot || !is.null(jaspResults[["mVarContMainContainer"]][["multiBinomialPredictionPlot"]])) return()
+
+
+  predictionPlot <- createJaspPlot(title ="Predicted Proportion", height = 480, width = 720,position = 6)
+  predictionPlot$dependOn(.multiVarPredictionDependencies())
+  binomialSummary <- jaspResults[["binomialResults"]]$object$binomialSummary
+  futureSummary <- jaspResults[["binomialPredictions"]]$object$futureSummary
+
+  #predictionPlot$setError(gettextf(paste0(colnames(binomialSummary),"lol",colnames(futureSummary))))
+  combinedSummary <- rbind(binomialSummary,futureSummary)
+  xBreaks <- pretty(combinedSummary$time)
+  yBreaks <- pretty(c(0,1))
+
+  predLimitReached <- futureSummary$mean > options$predictionLimit
+
+  jaspResults[["mVarContMainContainer"]][["predictionHtml"]] <- createJaspHtml(
+    text = ifelse(any(predLimitReached) & options$predictionLimit > 0,
+                  gettextf('
+                           <p style="color:tomato;"><b>This is a warning!</b></p>
+                           Error proportion limit of %#.2f is crossed for the first time in %i data points in the prediction period. At this point on average %#.2f data points will be out of control with an lower limit of %#.2f and an upper limit of %#.2f </p>
+                           ',options$predictionLimit,
+                           which(predLimitReached)[1],
+                           futureSummary$number[which(predLimitReached)[1]],
+                           futureSummary$lowerNumber[which(predLimitReached)[1]],
+                           futureSummary$higherNumber[which(predLimitReached)[1]]),
+                  gettextf('<p ">No warning. The limit of %#.2f is not crossed during the prediction period.</p>',options$predictionLimit)
+                  ),position = 5
+    )
+
+
+  p <- ggplot2::ggplot(combinedSummary,ggplot2::aes(x = time, y = mean)) +
+    ggplot2::geom_line() +
+    ggplot2::geom_point(ggplot2::aes(y=actual),size=0.5) +
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = lowerCI, ymax = higherCI),
+                         fill = "blue", alpha = 0.25) +
+    jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
+    ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
+    ggplot2::scale_x_continuous("Time",breaks = xBreaks,limits = c(min(combinedSummary$time),max(combinedSummary$time))) +
+    #ggplot2::ylab(yTitle) +
+    ggplot2::scale_y_continuous("Proportion",breaks = yBreaks,limits = c(0,1)) +
+    ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1)) +
+    ggplot2::geom_vline(xintercept = nrow(binomialSummary),linetype = "dashed")
+
+  if(options$predictionLimit > 0)
+    p <- p + ggplot2::geom_hline(yintercept = options$predictionLimit,linetype="dashed",color="darkred")
+
+  predictionPlot$plotObject <- p
+
+  jaspResults[["mVarContMainContainer"]][["multiBinomialPredictionPlot"]] <- predictionPlot
+  return()
+
+}
+
+
+.mVarContMultiBinomialPredictionTables <- function(jaspResults,options,ready){
+  if(!ready || !options$predictionTimeTable || !is.null(jaspResults[["mVarContMainContainer"]][["predictionTable"]])) return()
+
+  predictionTable <- createJaspTable(title = "PredictionTable",
+                                     dependencies = c(.multiVarModelDependencies(),
+                                                      .multiVarPredictionDependencies()),position = 7)
+  predictionTable$dependOn(c("predictionTableNumber","binTable"))
+
+  if(options$binTable > 1) predictionTable$addColumnInfo(name = "bins", title = "Bin", type= "string")
+  if(options$binTable == 1) predictionTable$addColumnInfo(name = "time", title = "Time bin", type = "integer")
+  predictionTable$addColumnInfo(name = "proportion", title = "Proportion", type = "integer", format = "dp:3")
+
+  predictionTable$addColumnInfo(name = "lower", title = "Lower", type = "number",overtitle = "Proportion Prediction Interval", format = "dp:2")
+  predictionTable$addColumnInfo(name = "upper", title = "Upper", type = "number",overtitle = "Proportion Prediction Interval", format = "dp:2")
+
+  if(options$predictionTableNumber){
+    predictionTable$addColumnInfo(name = "number", title = "Number", type = "integer", format = "dp:2")
+    predictionTable$addColumnInfo(name = "lowerNumber", title = "Lower", type = "integer",overtitle = "Number Prediction Interval", format = "dp:2")
+    predictionTable$addColumnInfo(name = "upperNumber", title = "Upper", type = "integer",overtitle = "Number Prediction Interval", format = "dp:2")
+    if(options$binTable > 1) predictionTable$addColumnInfo(name = "totalN", title = "Sample Size", type= "string")
+  }
+  .mVarContVarContMultiBinomialPredictionTablesFill(jaspResults,options,predictionTable)
+
+  return()
+}
+
+.mVarContVarContMultiBinomialPredictionTablesFill <- function(jaspResults,options,predictionTable){
+  futureSummary <- jaspResults[["binomialPredictions"]]$object$futureSummary
+
+  if(options$binTable > 1){
+    breaks <- seq(min(futureSummary$time)-1,max(futureSummary$time),options$binTable)
+    labels <- paste(head(breaks, -1) +1, tail(breaks, -1), sep = '-')
+    futureSummary$bins <- cut(futureSummary$time,breaks,labels)
+
+    futureSummary <- as.data.frame(t(sapply(split(futureSummary,futureSummary$bins),function(x) c(bins = x$bins[1],
+                                                                                                  time =x$time[1],
+                                                                                                  mean = mean(x$mean),
+                                                                                                  lowerCI = mean(x$lowerCI),
+                                                                                                  higherCI = mean(x$higherCI),
+                                                                                                  total = length(options$variables)*length(x$time)))))
 
 
 
+
+
+    futureSummary$number  <- futureSummary$total*futureSummary$mean
+    futureSummary$lowerNumber   <- futureSummary$total*futureSummary$lowerCI
+    futureSummary$higherNumber    <- futureSummary$total*futureSummary$higherCI
+
+    futureSummary$bins <- labels
+  }
+
+  if(options$binTable > 1) predictionTable[["bins"]] <- futureSummary$bins
+  if(options$binTable == 1) predictionTable[["time"]] <- futureSummary$time
+  predictionTable[["proportion"]] <- futureSummary$mean
+  predictionTable[["lower"]] <- futureSummary$lowerCI
+  predictionTable[["upper"]] <- futureSummary$higherCI
+
+  if(options$predictionTableNumber){
+    predictionTable[["number"]] <- futureSummary$number
+    predictionTable[["lowerNumber"]] <- futureSummary$lowerNumber
+    predictionTable[["upperNumber"]] <- futureSummary$higherNumber
+    if(options$binTable>1) predictionTable[["totalN"]] <- futureSummary$total
+  }
+  jaspResults[["mVarContMainContainer"]][["predictionTable"]] <- predictionTable
+  return()
+}
 
 
