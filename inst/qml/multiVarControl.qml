@@ -20,7 +20,7 @@ Form
     {
         name: "previousDataPoints"
         Layout.columnSpan: 2
-        label: qsTr("Only show previous")
+        label: qsTr("Only include previous")
         defaultValue: 10000
         afterLabel: "data points"
 
@@ -54,9 +54,9 @@ Form
                 	name: "outBoundOverallPlotLineType"
                 	radioButtonsOnSameRow: true
                     id: overollPlotType
-                	RadioButton { value: "points";	label: qsTr("Points") }
+                	RadioButton { value: "points";	label: qsTr("Points");	checked: true }
                 	RadioButton { value: "line";	label: qsTr("Line") }
-                	RadioButton { value: "both";	label: qsTr("Both");	checked: true }
+                	RadioButton { value: "both";	label: qsTr("Both") }
             	}
 
                 CheckBox
@@ -132,7 +132,7 @@ Form
             label: qsTr("Prediction table")
             checked: true
             enabled: predictionHorizon.value > 0
-            CheckBox{name: "predictionTableNumber";label: qsTr("Show predicted number")}
+            CheckBox{name: "predictionTableNumber";label: qsTr("Show predicted number"); checked: true}
             IntegerField{name: "binTable"; defaultValue: predictionHorizon.value/10; min:1;max: predictionHorizon.value; label: qsTr("Bin predictions every");afterLabel: "data points"}
 
         }

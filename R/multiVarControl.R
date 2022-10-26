@@ -55,7 +55,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
 }
 
 .mVarContContainerHelper <- function(jaspResults,ready,dataset,options){
-  if(!ready) return()
+  #if(!ready) return()
 
   if(is.null(jaspResults[["mVarContMainContainer"]])){
     mVarContMainContainer <- createJaspContainer(position = 1)
@@ -127,7 +127,7 @@ multiVarControl <- function(jaspResults, dataset, options) {
 
 
 .mVarContSummaryTable <- function(jaspResults,ready,dataset,options){
-  if(!is.null(jaspResults[["mVarContMainContainer"]][["overallSummaryTable"]]) || !ready) return()
+  if(!is.null(jaspResults[["mVarContMainContainer"]][["overallSummaryTable"]])) return()
 
 
   overallSummaryTable <- createJaspTable(title = "Control Summary Table",position = 1)
@@ -388,13 +388,29 @@ multiVarControl <- function(jaspResults, dataset, options) {
   if(!ready || !options$multiBinaryCheckPlot)  return()
   titleSub <- ifelse(options$multiBinWindow > 1,paste(" - summary window:",options$multiBinWindow),"")
   multiBinomialPlot <- createJaspPlot(title =paste0("Estimated Multivariate Proportion",titleSub), height = 480, width = 720,
-                                        dependencies = c("predictionTimePlot"),position = 3)
+                                        dependencies = c("predictionTimePlot"),position = 4)
 
 
   binomialResults <-  jaspResults[["binomialResults"]]$object
   sample <- binomialResults$sample
   dataAggregated <- binomialResults$dat
   binomialSummary <- binomialResults$binomialSummary
+
+  limitReached <- binomialSummary$mean > options$estimatedLimit
+
+  jaspResults[["mVarContMainContainer"]][["estimationHtml"]] <- createJaspHtml(
+    text = ifelse(any(limitReached) & options$estimatedLimit > 0,
+                  gettextf('
+                           <p style="color:tomato;"><b>This is a warning!</b></p>
+                           Error proportion limit of %#.2f is crossed for the first time at data point %i in the estimation period. At this point on average %#.2f data points are estimates to be out of control with an lower limit of %#.2f and an upper limit of %#.2f </p>
+                           ',options$estimatedLimit,
+                           binomialSummary$time[which(limitReached)[1]],
+                           binomialSummary$number[which(limitReached)[1]],
+                           binomialSummary$lowerNumber[which(limitReached)[1]],
+                           binomialSummary$higherNumber[which(limitReached)[1]]),
+                  gettextf('<p ">No warning. The limit of %#.2f is not crossed during the estimation period.</p>',options$estimatedLimit)
+    ),position = 3
+  )
 
 
   xBreaks <- pretty(binomialSummary$time)
@@ -419,10 +435,10 @@ multiVarControl <- function(jaspResults, dataset, options) {
 }
 
 .mVarContMultiBinomialPredictionPlot <- function(jaspResults,options,ready){
-  if(!options$predictionTimePlot || !is.null(jaspResults[["mVarContMainContainer"]][["multiBinomialPredictionPlot"]])) return()
+  if( !ready || !options$predictionTimePlot || !is.null(jaspResults[["mVarContMainContainer"]][["multiBinomialPredictionPlot"]])) return()
 
 
-  predictionPlot <- createJaspPlot(title ="Predicted Proportion", height = 480, width = 720,position = 5)
+  predictionPlot <- createJaspPlot(title ="Predicted Proportion", height = 480, width = 720,position = 6)
   predictionPlot$dependOn(.multiVarPredictionDependencies())
   binomialSummary <- jaspResults[["binomialResults"]]$object$binomialSummary
   futureSummary <- jaspResults[["binomialPredictions"]]$object$futureSummary
@@ -432,19 +448,20 @@ multiVarControl <- function(jaspResults, dataset, options) {
   xBreaks <- pretty(combinedSummary$time)
   yBreaks <- pretty(c(0,1))
 
+  predLimitReached <- futureSummary$mean > options$predictionLimit
 
   jaspResults[["mVarContMainContainer"]][["predictionHtml"]] <- createJaspHtml(
-    text = ifelse(any(futureSummary$mean > options$predictionLimit),
+    text = ifelse(any(predLimitReached) & options$predictionLimit > 0,
                   gettextf('
                            <p style="color:tomato;"><b>This is a warning!</b></p>
-                           Error proportion limit of %#.2f crossed in %i data points. At this point on average %#.2f data points will be out of control with an lower limit of %#.2f and an upper limit of %#.2f </p>
+                           Error proportion limit of %#.2f is crossed for the first time in %i data points in the prediction period. At this point on average %#.2f data points will be out of control with an lower limit of %#.2f and an upper limit of %#.2f </p>
                            ',options$predictionLimit,
-                           which(futureSummary$mean > options$predictionLimit),
-                           futureSummary$number[which(futureSummary$mean > options$predictionLimit)],
-                           futureSummary$lowerNumber[which(futureSummary$mean > options$predictionLimit)],
-                           futureSummary$higherNumber[which(futureSummary$mean > options$predictionLimit)]),
-                  gettextf('<p ">All is okay</p>')
-                  ),position = 4
+                           which(predLimitReached)[1],
+                           futureSummary$number[which(predLimitReached)[1]],
+                           futureSummary$lowerNumber[which(predLimitReached)[1]],
+                           futureSummary$higherNumber[which(predLimitReached)[1]]),
+                  gettextf('<p ">No warning. The limit of %#.2f is not crossed during the prediction period.</p>',options$predictionLimit)
+                  ),position = 5
     )
 
 
@@ -475,7 +492,9 @@ multiVarControl <- function(jaspResults, dataset, options) {
 .mVarContMultiBinomialPredictionTables <- function(jaspResults,options,ready){
   if(!ready || !options$predictionTimeTable || !is.null(jaspResults[["mVarContMainContainer"]][["predictionTable"]])) return()
 
-  predictionTable <- createJaspTable(title = "PredictionTable",dependencies = c(.multiVarModelDependencies(),.multiVarPredictionDependencies()),position = 6)
+  predictionTable <- createJaspTable(title = "PredictionTable",
+                                     dependencies = c(.multiVarModelDependencies(),
+                                                      .multiVarPredictionDependencies()),position = 7)
   predictionTable$dependOn(c("predictionTableNumber","binTable"))
 
   if(options$binTable > 1) predictionTable$addColumnInfo(name = "bins", title = "Bin", type= "string")
