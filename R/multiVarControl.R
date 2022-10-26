@@ -427,6 +427,9 @@ multiVarControl <- function(jaspResults, dataset, options) {
     ggplot2::scale_y_continuous("Proportion",breaks = yBreaks,limits = c(0,1)) +
     ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1))
 
+  if(options$estimatedLimit > 0)
+    p <- p + ggplot2::geom_hline(yintercept = options$estimatedLimit,linetype="dashed",color="darkred")
+
   multiBinomialPlot$plotObject <- p
 
   jaspResults[["mVarContMainContainer"]][["multiBinomialPlot"]] <- multiBinomialPlot
