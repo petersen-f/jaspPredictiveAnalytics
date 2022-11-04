@@ -11,7 +11,7 @@ Form
 
 		AvailableVariablesList	{ name: "allVariablesList" }
 		AssignedVariablesList	{ name: "dependent";	title: qsTr("Dependent Variable");	suggestedColumns: ["scale"];	singleVariable: true}
-		AssignedVariablesList	{ name: "dates";		title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true		}
+		AssignedVariablesList	{ name: "time";		title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true		}
 	}
 
 
@@ -225,148 +225,154 @@ Form
 	}
 
 
-	//Section
-	//{
-	//	title: qsTr("Full Data Prediction")
-//
-	//	CheckBox
-	//	{
-	//		name: "controlPredictionCheck"
-//
-	//		label: "Control Prediction"
-//
-	//		Group
-	//		{
-	//			title: "Model Period"
-	//			columns: 2
-	//			IntegerField{name: "controlPredictionStart";label: "Start"}
-	//			IntegerField{name: "controlPredictionEnd";label: "End"}
-	//		}
-//
-	//		IntegerField{name: "controlPredictionHorizon";label: "Prediction Horizon"}
-	//		IntegerField{name: "predDraws"; label: "Niter"}
-	//		CheckBox{name:"controlPredictionFocus"; label: "Focus on all available data"}
-//
-//
-//
-	//	}
-	//}
-
-
 	Section
 	{
-		title: qsTr("Model Selection")
-		columns: 2
+		title: qsTr("Feature Engineering")
 
+		IntegerField{name: "featEngLags";label: "Number of lags";defaultValue: 0; min: 0}
 
+		CheckBox{name: "featEngAutoTimeBased"; label: "Automatic time based features"}
 
-
-
-
-	//	Group
-	//	{
-	//		//title: qsTr("Model Selection")
-	//		CheckBox{name:"forecastModelBaselineRunVar";label: "baseline - running variance"}
-	//		CheckBox{name:"forecastModelBaselineRunVarMean";label: "baseline - running variance & mean"}
-	//		CheckBox{name:"forecastModelBstsLocalLevelCheck";label: "bsts - local level model"}
-	//		CheckBox{name:"forecastModelBstsLinearTrendCheck";label: "bsts - linear trend model"}
-	//		CheckBox{name:"forecastModelBstsArCheck";label: "bsts - autoregressive model"}
-	//		CheckBox{name:"forecastModelBstsSemiLocalCheck";label: "bsts - semi local trend model"}
-
-
-	//	}
-
-		VariablesForm
-		{
-			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
-
-			AvailableVariablesList
-			{
-				name: "modelOptions"
-				source: [{values: ["baseline - running variance",
-									"baseline - running variance & mean",
-									"bsts - local level model",
-									"bsts - linear trend model",
-									"bsts - autoregressive model",
-									"bsts - semi local trend model"]}]
-			}
-			AssignedVariablesList
-			{
-				name: "selectedModels"
-			}
-		}
-	}
-
-
-	Section
-	{
-		title: qsTr("Model Plots")
-		VariablesForm
-		{
-			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
-			AvailableVariablesList
-			{
-
-				name: "fromR"
-				source: [ { rSource: "plottableModelsQml" } ]
-			}
-			AssignedVariablesList
-			{
-				//height: 200
-				name: "modelsToPlot"
-			}
-		}
-	}
-
-	Section
-
-	{
-		columns : 2
-
-
-		title: qsTr("Forecast Verification")
-
-		VariablesForm
-		{
-			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
-
-			AvailableVariablesList
-			{
-				name: "forecastVerificationAvailableModels"
-				source: [ { rSource: "plottableModelsQml" } ]
-			}
-			AssignedVariablesList
-			{
-					name: "forecastVerificationSelectedModels"
-			}
-		}
+		//CheckBox{
+		//    name: "featEngAggregateTime"
+		//    label: "Aggregate data every"
+		//    childrenOnSameRow: true
+		//    IntegerField{name: "featEngAggWindow"; afterLabel: qsTr("minutes"); defaultValue: 2; min:2}
+		//}
 
 		Group
 		{
-			Layout.columnSpan: 1
-	 		IntegerField{name: "forecastVerificationPredictionSteps";label: "k-step ahead prediction";defaultValue: 1;min: 1}
-			IntegerField{name: "forecastVerificationModelWindow";label: "Sliding window";defaultValue: 30 ;min: 0}
-			IntegerField{name: "forecastVerificationDraws";label: "MCMC draws";defaultValue:10;min: 10}
-			IntegerField{name: "forecastVerificationModelHistory";label: "Model history";defaultValue:200;min: 0}
-
+			Layout.columnSpan: 2
+			CheckBox{name: "featEngRemoveZV"; label: qsTr("Remove zero variance variables")}
+			CheckBox{
+				name: "featEngRemoveCor"
+				label: qsTr("Remove highly correlated variables above:")
+				childrenOnSameRow: true
+				DoubleField{ name: "featEngRemoveCorAbove"; defaultValue: 0.8}
+			}
 		}
+
+	}
+	Section
+    {
+        title: qsTr("Forecast Verification")
+		Group
+		{
+			Layout.columnSpan: 2
+			columns:2
+			Group
+        {
+			title: qsTr("Evaluation Plan")
+            //Layout.columnSpan: 1
+            IntegerField{name: "resampleForecastHorizon"; id: "resampleForecastHorizon";  label: qsTr("Test period");defaultValue: 100}
+            IntegerField{name: "resampleInitialTraining"; label: qsTr("Training period"); defaultValue: resampleForecastHorizon.value*2}
+            IntegerField{name: "resampleSkip"; label: qsTr("Skip between slices");defaultValue:100}
+
+            IntegerField{name: "resampleMaxSlice"; id: "maxSlices"; label: qsTr("Maximum training slices");defaultValue:5}
+            CheckBox{name: "resampleCumulativeCheck"; label: qsTr("Cumulative training")}
+
+			CheckBox
+			{
+				name: "resampleCheckShowTrainingPlan"
+				label: qsTr("Show evaluation plan")
+				CheckBox{ name: "resamplePlanPlotEqualDistance"; label: qsTr("Spread points equally")}
+				IntegerField{name: "resamplePlanPlotMaxPlots"; label: "Max slices shown:"; defaultValue: 1; max: maxSlices.value ;min:1}
+			}
+        }
+		Group
+		{
+
+			title: qsTr("Evaluation Metrics")
+			CheckBox{ name: "metricCrps"; 		label: qsTr("Cont. ranked probability score"); checked: true}
+			CheckBox{ name: "metricDss"; 		label: qsTr("Dawid–Sebastiani score"); checked: true}
+			CheckBox{ name: "metricLog"; 		label: qsTr("Log score"); checked: true}
+			CheckBox{ name: "metricCoverage";	label: qsTr("Coverage"); checked: true}
+			CheckBox{ name: "metricBias"; 		label: qsTr("Bias"); checked: true}
+			CheckBox{ name: "metricPit";		label: qsTr("Probability integral transform"); checked: true}
+			CheckBox{ name: "metricMae"; 		label: qsTr("Mean absolute error"); checked: true}
+			CheckBox{ name: "metricRmse"; 		label: qsTr("Root mean squared error"); checked: true}
+			CheckBox{ name: "metricR2"; 		label: qsTr("R²"); checked: true}
+
+		}}
+
+
+
 
 
 		Group
 		{
-			title: qsTr("Probalistic Forecast Verification Metrics")
+			title: qsTr("Model Selection")
+			columns: 2
 
-			//CheckBox{name:"forecastMetricsLog";label: "Logarithmic score";checked:true}
-			CheckBox{name:"forecastMetricsCRPS";label: "Continuous ranked probability score";checked:true}
-			CheckBox{name:"forecastMetricsDSS";label: "Dawid-Sebastiani score";checked:true}
-			CheckBox{name:"forecastMetricsAUC";label: "ROC";checked:true}
-			CheckBox{name:"forecastMetricsPR";label: "Precision-recall score";checked:true}
-			CheckBox{name:"forecastMetricsBrier";label: "Brier score";checked:true}
-			//CheckBox{name:"forecastMetricsRSME";label: "Root mean squared error"}
+			VariablesForm
+			{
+				preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+
+				AvailableVariablesList
+				{
+					name: "modelSelection"
+					width: preferencesModel.uiScale * 300
+					source: [{values: [	{label : qsTr("linear regression - y ~ time"), value: "lmSpike"},
+										{label : qsTr("linear regression - regression"), value: "lmSpikeReg"},
+										{label : qsTr("linear regression - regression + lag"), value: "lmSpikeRegLag"},
+										{label : qsTr("bsts - linear trend model"), value: "bstsLinear"},
+										{label : qsTr("bsts - linear trend model - regression"), value: "bstsLinearReg"},
+										{label : qsTr("bsts - linear trend model - regression + lag"), value: "bstsLinearLag"},
+										{label : qsTr("bsts - autoregressive model"), value: "bstsAr"},
+										{label : qsTr("bsts - autoregressive model - regression"), value: "bstsArReg"},
+										{label : qsTr("bsts - autoregressive model - regression + lag"), value: "bstsArRegLag"},
+										{label : qsTr("prophet"), value: "prophet"},
+										{label : qsTr("prophet - regression"), value: "prophetReg"},
+										{label : qsTr("prophet - regression + lag"), value: "prophetRegLag"},
+										{label : qsTr("xgboost - regression"), value: "xgboostReg"},
+										{label : qsTr("xgboost - regression + lag"), value: "xgboostRegLag"}
+
+										]
+									}]
+								}
+								AssignedVariablesList
+								{
+									name: "selectedModels"
+									id: selectedModels
+
+								}
 
 
+							}
+
+
+						}
+	}
+
+
+	Section
+	{
+		title: qsTr("Prediction Plots")
+		Group
+		{
+			title: qsTr("Models to plot")
+			VariablesForm
+
+			{
+
+				preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+				AvailableVariablesList
+				{
+
+					name: "fromR"
+					source: selectedModels
+				}
+				AssignedVariablesList
+				{
+					//height: 200
+					name: "modelsToPlot"
+
+				}
+			}
 		}
 	}
+
+
 	Section
 	{
 		title: qsTr("Bayesian Model Averaging")

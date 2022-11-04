@@ -19,7 +19,9 @@ Imports:
   future,
   future.apply,
   reshape2,
-  Boom
+  Boom,
+  lubridate,
+  prophet
 Suggests:
   testthat
 Remotes:
