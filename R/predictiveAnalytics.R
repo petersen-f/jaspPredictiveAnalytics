@@ -65,11 +65,14 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 }
 .predanReadData <- function(options,ready) {
   if(!ready) return()
-  numericVariable <- c(options$dependent)
+  numericVariable <- c(options$dependent,unlist(options$covariates))
   numericVariable <- numericVariable[numericVariable != ""]
+  nominalVars     <- unlist(options$factors)
   timeVar <- unlist(options$time)
   timeVar <- timeVar[timeVar != ""]
-  dataset <- .readDataSetToEnd(columns.as.numeric = numericVariable,columns = timeVar)
+  dataset <- .readDataSetToEnd(columns.as.numeric = numericVariable,
+                               columns.as.factor = nominalVars,
+                               columns = timeVar)
 
   #options$dataset <- dataset
 
@@ -119,18 +122,23 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 # finds intersection between lines
-.findCross <- function(tt,y,limit){
+.findCross <- function(tt,y,time,limit){
   d <- y - limit
   signChanges <- (d[1:(length(d)-1)] * d[2:length(d)]) <= 0
   left <- c(signChanges, FALSE)
   right <- c(FALSE, signChanges)
   t <- (limit - y[left])/(y[right] - y[left])
+
   x2 <- (1 - t)*tt[left] + t*tt[right]
 
+  time2 <- as.numeric(time)
+  x2time <- (1 - t)*time2[left] + t*time2[right]
+  time3 <- as.POSIXct(x2time,origin = "1970-01-01")
+
   if(length(x2 ) > 0)
-    return(data.frame(y=limit,tt  = x2, include=0,outBound=T))
+    return(data.frame(y=limit, time = time3,tt  = x2, include=0,outBound=T))
   else
-    return(data.frame(y=NULL, tt=NULL,  include=NULL,outBound=NULL))
+    return(data.frame(y=NULL,time = NULL, tt=NULL,  include=NULL,outBound=NULL))
 }
 
 
@@ -366,12 +374,12 @@ quantInv <- function(distr, value){
   }
 
 
-  plotData <- controlData[1:3]
+  plotData <- controlData[1:4]
   plotData$include = 1
 
   plotData <- rbind(plotData,
-                    .findCross(plotData$tt,plotData$y,upperLimit),
-                    .findCross(plotData$tt,plotData$y,lowerLimit))
+                    .findCross(plotData$tt,plotData$y,plotData$time,upperLimit),
+                    .findCross(plotData$tt,plotData$y,plotData$time,lowerLimit))
 
 
   plotData <- plotData[order(plotData$tt),]
@@ -384,20 +392,22 @@ quantInv <- function(distr, value){
 
   }
 
-  xBreaks <- pretty(plotData$tt)
+  t_var <- ifelse(options$"controlSpreadPointsEqually","tt","time")
+
+  xBreaks <- pretty(plotData[[t_var]])
   yBreaks <- pretty(plotData$y)
 
 
 
   predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720)
-  p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(tt,y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
-    ggplot2::geom_hline(yintercept = upperLimit,linetype="dashed",color="darkred") +
+  p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(.data[[t_var]],y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
+    ggplot2::geom_hline(na.rm = T,yintercept = upperLimit,linetype="dashed",color="darkred") +
     ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred") +
     ggplot2::scale_color_manual(guide="none",values=c("#4E84C4","#D16103"))
 
 
   if(options$controlLineType %in% c("line","both"))
-    p <- p + ggplot2::geom_line(size=1,data=plotData,ggplot2::aes(tt,y,colour=ggplot2::after_stat(plotData$includeLine)))
+    p <- p + ggplot2::geom_line(size=1,data=plotData,ggplot2::aes(.data[[t_var]],y,colour=ggplot2::after_stat(plotData$includeLine)))
   if(options$controlLineType %in% c("points","both"))
     p <- p + ggplot2::geom_point(size=2)
 
@@ -735,7 +745,20 @@ lagit <- function(a,k) {
   if(!ready || !is.null(jaspResults[["predanResults"]][["featureEngState"]])) return()
 
   featureEngState <- createJaspState()
-  featEngData <- data.frame(y =  dataset[,options[["dependent"]]], time = as.POSIXct( dataset[,options[["time"]]]))
+  #featEngData <- data.frame(y =  dataset[,options[["dependent"]]], time = as.POSIXct( dataset[,options[["time"]]]))
+
+  featEngData <- dataset[,c(options[["dependent"]],encodeColNames(options$time))]
+  if(length(options$covariates)>0)
+    featEngData <- cbind(featEngData,dataset[,encodeColNames(options$covariates),drop=F])
+  colnames(featEngData)[1:2] <- c("y","time")
+
+  print(colnames(featEngData))
+    #convert factors to dummy vars via model.matrix
+
+  if(length(options$factors) > 0){
+    featEngData <- as.data.frame(cbind(featEngData,model.matrix(~.-1,dataset[,encodeColNames(options$factors),drop=F])))
+
+  }
 
   ##TODO: add
   if(options$featEngLags > 0)
@@ -744,6 +767,9 @@ lagit <- function(a,k) {
   if(options$featEngAutoTimeBased)
     featEngData <- cbind(featEngData,get_timeseries_signature_date(featEngData$time))
 
+
+
+  #stop(gettext(paste0(colnames(featEngData))))
 
   featureEngState$object <- na.omit(featEngData)
   jaspResults[["predanResults"]][["featureEngState"]] <- featureEngState
@@ -754,7 +780,7 @@ lagit <- function(a,k) {
 
 
 .predanForecastVerificationPlanner <- function(jaspResults,dataset,options,ready){
-  if(!ready || is.null(jaspResults[["predanResults"]][["predanBounds"]])) return()
+  if(!ready || is.null(jaspResults[["predanResults"]][["featureEngState"]])) return()
 
   dataControl <- jaspResults[["predanResults"]][["predanBounds"]]$object[[1]]
 
@@ -796,13 +822,14 @@ lagit <- function(a,k) {
     modelList <- .createModelListHelper(dataEng,unlist(options$selectedModels))
 
     cvResults <- list()
+    print(paste0("models:",sapply(modelList,"[","model")))
 
     for (i in 1:length(modelList)) {
       cvResults[[i]] <- .crossValidationHelperSlices(model = modelList[[i]]$model,
                                                      formula = modelList[[i]]$modelFormula,
                                                      data = dataEng,
                                                      cvPlan = jaspResults[["predanResults"]][["cvPlanState"]]$object,
-                                                     parallel = T,preProList = T)
+                                                     parallel =T,preProList = T)
 
       cvResults[[i]]$modelName <- options$selectedModels[[i]]
     }
@@ -881,7 +908,10 @@ lagit <- function(a,k) {
               "prophet - regression"= "prophetReg",
               "prophet - regression + lag"= "prophetRegLag",
               "xgboost - regression"= "xgboostReg",
-              "xgboost - regression + lag"= "xgboostRegLag")
+              "xgboost - regression + lag"= "xgboostRegLag",
+              "bart - regression" = "bartReg",
+              "bart - regression + lag" = "bartRegLag",
+              "bart - stack" = "bartStackReg")
 
 
 
@@ -902,8 +932,11 @@ lagit <- function(a,k) {
     # currently unused but option to extend model
     #with custom parameters such as MCMC draws, exptected model size,...
     #model_args = NULL
-    return(list(model = model,modelFormula = modelFormula,modelName = selectedModels))
+    #stop(gettext(paste0(modelFormula)))
+
+    return(list(model = model,modelFormula = modelFormula,modelName = names(modNames)[modNames==x]))
   })
+  print(res)
 }
 
 
@@ -930,14 +963,15 @@ lagit <- function(a,k) {
     preProSpec <- preProcess.default(trainData[,!grepl("y",colnames(trainData))],verbose = F,method = c("center", "scale","zv"))
 
     #identify factors with too
-    fctr <- sapply(trainData,is.factor)
-    factorsToRemove <-names(sapply(trainData[,fctr], function(x) length(unique(x)) < 2))
-    preProSpec$method$remove <- append(preProSpec$method$remove,factorsToRemove)
+    #fctr <- sapply(trainData,is.factor)
+    #factorsToRemove <-names(sapply(trainData[,fctr], function(x) length(unique(x)) < 2))
+    #preProSpec$method$remove <- append(preProSpec$method$remove,factorsToRemove)
     #print(paste0("to remove:",preProSpec$method$remove,collapse = " "))
     trainData <- predict.preProcess(preProSpec,trainData)
 
     # remove args if they have zero var from formula
-    formula <- update(formula, paste0(".~." , paste0("-",preProSpec$method$remove,collapse = " ")))
+    if(length(preProSpec$method$remove) >0 )
+      formula <- update(formula, paste0(".~." , paste0("-",preProSpec$method$remove,collapse = " ")))
     if(!is.null(testData)) testData <- predict.preProcess(preProSpec,testData)
 
 
@@ -950,7 +984,9 @@ lagit <- function(a,k) {
                  "bstsAr" = do.call(.bstsFitHelper,c(list(trainData,formula,"bstsAr",...),model_args)),
                  "bstsLinear" = do.call(.bstsFitHelper,c(list(trainData,formula,"bstsLinear",...),model_args)),
                  "prophet" = do.call(.prophetFitHelper,c(list(trainData,formula,...),model_args)),
-                 "xgboost" = do.call(.xgbFitHelper,c(list(trainData = trainData,formula = formula),model_args,...))
+                 "xgboost" = do.call(.xgbFitHelper,c(list(trainData = trainData,formula = formula),model_args,...)),
+                 "bart" = do.call(.bartFitHelper,c(list(trainData = trainData,formula = formula),model_args,...)),
+                 "bartStack" = do.call(.bartStackFit,c(list(trainData = trainData,formula = formula,testData = testData),model_args,...))
   )
   if(predictFuture & lags == 0){
 
@@ -959,7 +995,9 @@ lagit <- function(a,k) {
                     "bstsAr" = .bstsPredictHelper(fit$model,testData, horizon,formula,...),
                     "bstsLinear" = .bstsPredictHelper(fit$model,testData, horizon,formula,...),
                     "prophet" = .prophetPredictHelper(fit$model,testData,horizon,...),
-                    "xgboost" = do.call(.xgbPredHelper,list(fit$model,testData,formula = formula))
+                    "xgboost" = do.call(.xgbPredHelper,list(fit$model,testData,formula = formula)),
+                    "bart" = do.call(.bartPredictHelper,list(fit$model,testData,formula = formula,...)),
+                    "bartStack" = do.call(.bartStackPredictHelper,list(fit = fit$model,testData = testData,formula = formula,trendPred = fit$trendPred,...))
     )
 
   } else if(lags > 0){
@@ -1021,7 +1059,8 @@ lagit <- function(a,k) {
   predArray <- array(unlist(l),dim=c(dim(l[[1]]),length(l)),dimnames = list(1:dim(l[[1]])[1],1:dim(l[[1]])[2],names(cvModelObject)))
 
   realMatrix <- matrix(unlist(lapply(cvModelObject, function(x) x$pred$trueVal)),ncol = length(cvModelObject),
-                       dimnames = list(1:dim(l[[1]])[1],names(cvModelObject)))
+                       dimnames = list(1:dim(l[[1]])[1],names(cvModelObject))
+                       )
 
 
   predSummary <- aperm(apply(X = predArray,c(1,3) ,
@@ -1141,7 +1180,7 @@ lagit <- function(a,k) {
 .predanForecastVerificationResultPlot <- function(jaspResults,options,ready){
   if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
 
-  if(is.null(jaspResults[["predanMainContainer"]][["cvContainer"]][["cvResPlot"]]) && length(options$"modelsToPlot")>0){
+  if(is.null(jaspResults[["predanMainContainer"]][["cvContainer"]][["cvResPlot"]]) && length(options$"modelsToPlot") >1){
 
 
     cvRes <- jaspResults[["predanResults"]][["cvResultsState"]]$object
@@ -1173,7 +1212,7 @@ lagit <- function(a,k) {
                                                                   c(length(x$analysis),length(x$assessment)))))
 
 
-    realMatrix <- cvRes$lmSpike1$realMatrix
+    realMatrix <- cvRes[[1]]$realMatrix
     dataPlot <- dplyr::bind_rows(.id = "slice",dataPlot)
     realData <- as.data.frame.table(realMatrix)
 
@@ -1185,9 +1224,14 @@ lagit <- function(a,k) {
 
     predSummArray <-  sapply(cvRes,FUN =  function(x) x$predSummary,simplify = "array",USE.NAMES = T)
     dimnames(predSummArray)[3] <- list(dimnames(realMatrix)[[2]])
+
+
     pred <- cbind(as.data.frame.table(predSummArray[,1,,],responseName = "pred"),
-                  upr = as.data.frame.table(predSummArray[,2,,])[,4],
-                  lwr = as.data.frame.table(predSummArray[,3,,])[,4])
+                    upr = as.data.frame.table(predSummArray[,2,,])$Freq,
+                    lwr = as.data.frame.table(predSummArray[,3,,])$Freq)
+
+    #if(length(mods)==1)
+    #  pred <- cbind(pred,model = mods)[]
 
 
     colnames(pred)[1:3] <- c("tt","slice","model")

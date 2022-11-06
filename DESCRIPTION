@@ -21,7 +21,8 @@ Imports:
   reshape2,
   Boom,
   lubridate,
-  prophet
+  prophet,
+  BART
 Suggests:
   testthat
 Remotes:

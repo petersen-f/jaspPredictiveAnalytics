@@ -10,8 +10,10 @@ Form
 	{
 
 		AvailableVariablesList	{ name: "allVariablesList" }
-		AssignedVariablesList	{ name: "dependent";	title: qsTr("Dependent Variable");	suggestedColumns: ["scale"];	singleVariable: true}
-		AssignedVariablesList	{ name: "time";		title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true		}
+		AssignedVariablesList	{ name: "dependent";		title: qsTr("Dependent Variable");	suggestedColumns: ["scale"];	singleVariable: true}
+		AssignedVariablesList	{ name: "time";				title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true}
+		AssignedVariablesList	{ name: "covariates";		title: qsTr("Covariates");			suggestedColumns: ["scale"];	allowedColumns: ["scale"]}
+		AssignedVariablesList 	{ name: "factors";		title: qsTr("Factors");		allowedColumns: ["ordinal", "nominal", "nominalText"]}
 	}
 
 
@@ -118,6 +120,13 @@ Form
 				name: "controlPlotCheck"
 				label: qsTr("Display control chart")
 				id: controlPlotCheckbox
+
+
+				CheckBox
+				{
+					name: "controlSpreadPointsEqually"
+					label: qsTr("Spread points equally")
+				}
 				RadioButtonGroup
 
             	{
@@ -325,7 +334,12 @@ Form
 										{label : qsTr("prophet - regression"), value: "prophetReg"},
 										{label : qsTr("prophet - regression + lag"), value: "prophetRegLag"},
 										{label : qsTr("xgboost - regression"), value: "xgboostReg"},
-										{label : qsTr("xgboost - regression + lag"), value: "xgboostRegLag"}
+										{label : qsTr("xgboost - regression + lag"), value: "xgboostRegLag"},
+										{label : qsTr("bart - regression"), value: "bartReg" },
+										{label : qsTr("bart - regression + lag"), value: "bartRegLag"},
+										{label : qsTr("bart - stack"), value: "bartStackReg"}
+
+
 
 										]
 									}]
