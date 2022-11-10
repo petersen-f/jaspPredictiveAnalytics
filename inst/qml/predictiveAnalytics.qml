@@ -390,6 +390,49 @@ Form
 	Section
 	{
 		title: qsTr("Bayesian Model Averaging")
+		CheckBox
+		{
+			name: "checkPerformBma"
+			label: "Perform BMA"
+			id: doBMA
+			//checked: true
+
+			RadioButtonGroup
+			{
+				name: "bmaMethod"
+				title: qsTr("Method")
+				RadioButton{ value: "bmaMethodEm"; label: qsTr("Expectation–maximization")}
+				RadioButton{ value: "bmaMethodGibbs"; label: qsTr("Gibbs sampling")}
+			}
+			RadioButtonGroup
+			{
+				name: "bmaTestPeriod"
+				title: "Evaluation Method"
+				RadioButton{ value: "bmaTestNextSlice"; label: qsTr("Next test slice")}
+				RadioButton
+				{
+					value: "bmaSameSlice"
+					label: qsTr("Same test slice")
+					CIField { name: "bmaTestProp"; label: qsTr("Last");afterLabel: qsTr("% of data");defaultValue: 30;decimals:0;fieldWidth: 30}
+				}
+			}
+		}
+		Group
+		{
+			title: qsTr("Tables")
+			CheckBox{
+				name: "bmaWeightsTable"
+				enabled: doBMA.checked
+				label: qsTr("Model weights")
+				CheckBox{name: "bmaWeightsTablePerSlice"; label: qsTr("Show per test slice")}
+			}
+
+		}
+
+	}
+	Section
+	{
+		title: qsTr("Bayesian Model Averaging")
 
 		Group
 		{

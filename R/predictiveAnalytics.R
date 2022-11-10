@@ -47,8 +47,8 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     #.predanForecastVerificationModelsHelper(jaspResults,dataset,options,ready)
     #.predanForecastVerificationModelsTable(jaspResults,dataset,options,ready)
 #
-    #.predanBMAHelperResults(jaspResults,dataset,options,ready)
-    #.predanBMAWeightsTable(jaspResults,dataset,options,ready)
+    .predanBMAHelperResults(jaspResults,dataset,options,ready)
+    .predanBMAWeightsTable(jaspResults,dataset,options,ready)
     #.predanBMAPlots(jaspResults,dataset,options,ready)
     #.predanFuturePredictionHelper(jaspResults,dataset,options,ready)
 
@@ -395,7 +395,10 @@ quantInv <- function(distr, value){
   t_var <- ifelse(options$"controlSpreadPointsEqually","tt","time")
 
   xBreaks <- pretty(plotData[[t_var]])
-  yBreaks <- pretty(plotData$y)
+  if(options$xAxisLimit =="controlBounds")
+    yBreaks <- pretty(plotLimit)
+  else
+    yBreaks <- pretty(plotData$y)
 
 
 
@@ -824,12 +827,27 @@ lagit <- function(a,k) {
     cvResults <- list()
     print(paste0("models:",sapply(modelList,"[","model")))
 
+
+
+
     for (i in 1:length(modelList)) {
+
+
+      startProgressbar(
+        length(modelList),
+        gettextf(
+          paste0("Running model ", i, " / ",
+                 length(modelList)," :",options$selectedModels[[i]]))
+      )
+
+      for(j in 1:i)
       cvResults[[i]] <- .crossValidationHelperSlices(model = modelList[[i]]$model,
                                                      formula = modelList[[i]]$modelFormula,
                                                      data = dataEng,
                                                      cvPlan = jaspResults[["predanResults"]][["cvPlanState"]]$object,
                                                      parallel =T,preProList = T)
+
+
 
       cvResults[[i]]$modelName <- options$selectedModels[[i]]
     }
@@ -1262,6 +1280,163 @@ lagit <- function(a,k) {
 
   return()
 }
+
+.ebmaHelper <- function(predSumArray,
+                       realArray,
+                       methodBMA = c("EM","gibbs"),
+                       testMethod = c("next","in"),
+                       inPercent = 0.3,retrain = T,parallel = T){
+
+  testMethod <- match.arg(testMethod)
+  if(testMethod == "in"){
+    nTrain <- 1:round(nrow(realArray)*(1-inPercent),0)
+    nTest <- tail(nTrain+1,1):nrow(realArray)
+    nSlice <- 0
+  } else{
+    nTrain <- nTest <- 1:nrow(realArray)
+    nSlice <- 1
+  }
+
+  #predBmaArray <-
+  resList <- list()
+
+  if(!parallel){
+    future::plan(future::sequential)
+  } else{
+    ifelse(Sys.info()["sysname"] == "Windows",
+           future::plan(future::multisession,workers = 5),
+           future::plan(future::multisession,workers = 5))
+  }
+
+  resList <- future.apply::future_lapply(X = 1:dim(realArray)[2],FUN = function(i){
+
+    iTest <- i + nSlice
+    if(i != dim(realArray)[2]){
+      bmaData <- EBMAforecast::makeForecastData(.predCalibration = predSumArray[nTrain,1,i,],
+                                                .outcomeCalibration  = realArray[nTrain,i,1],
+                                                .predTest = predSumArray[nTest,1,iTest,],
+                                                .outcomeTest = realArray[nTest,iTest,1],
+                                                .modelNames = dimnames(realArray)[[3]])
+    } else {
+      bmaData <- EBMAforecast::makeForecastData(.predCalibration = predSumArray[nTrain,1,i,],
+                                                .outcomeCalibration  = realArray[nTrain,i,1],
+                                                .modelNames = dimnames(realArray)[[3]])
+    }
+
+    bmaRes <- EBMAforecast::calibrateEnsemble(bmaData,model = "normal",method = methodBMA)
+    bmaRes
+  })
+  if(methodBMA == "gibbs"){
+    scores <- cbind(NA,sapply(X = 1:(dim(realArray)[2]-1),
+                              function(x) colMeans(.scorePred(resList[[x]]@predTest[,1,],
+                                                             resList[[x]]@outcomeTest,
+                                                             SD = sqrt(resList[[x]]@variance)))))
+  } else{
+    scores <- cbind(NA,sapply(X = 1:(dim(realArray)[2]-1), function(x) colMeans(.scorePred(resList[[x]]@predTest[,1,],
+                                                                                          resList[[x]]@outcomeTest,
+                                                                                          SD =sqrt(resList[[x]]@variance)))))
+  }
+
+  weightMatrix <- sapply(resList,function(x) x@modelWeights)
+  return(list(res = resList,scores = scores,weightMatrix = weightMatrix))
+}
+
+.predanBMAHelperResults <- function(jaspResults,dataset,options,ready){
+  if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
+
+  if(is.null(jaspResults[["predanResults"]][["bmaResState"]]) && options$checkPerformBma){
+
+    bmaResState <- createJaspState()
+    bmaResState$dependOn(c("checkPerformBma","bmaMethod","bmaTestPeriod","bmaSameSlice"))
+
+    cvRes <- jaspResults[["predanResults"]][["cvResultsState"]]$object
+
+    predSumArray <-   sapply(cvRes,FUN =  function(x) x$predSummary,simplify = "array")
+    realArray <- sapply(cvRes, function(x) x$realMatrix,simplify = "array")
+
+
+    bmaMethod <- switch (options$"bmaMethod",
+       "bmaMethodEm" = "EM",
+       "bmaMethodGibbs" = "gibbs"
+    )
+
+    bmaTestMethod <- switch (options$"bmaTestPeriod",
+       "bmaTestNextSlice" = "next",
+       "bmaSameSlice" = "in"
+    )
+
+    bmaRes <- .ebmaHelper(predSumArray = predSumArray,
+                          realArray = realArray,
+                          methodBMA = bmaMethod,
+                          testMethod = bmaTestMethod,inPercent = options$bmaTestProp,
+                          parallel = T)
+
+    bmaResState$object <- bmaRes
+
+
+    metricSummaryTable <- jaspResults[["predanMainContainer"]][["cvContainer"]][["metricTable"]]
+
+    scoreSum <- rowMeans(bmaRes$scores,na.rm = T)
+    metricSummaryTable$addRows(list(
+      "model" = "BMA",
+      "crps"  = scoreSum["crps"],
+      "dss" = scoreSum["dss"],
+      "log" = scoreSum["log"],
+      "coverage"  =scoreSum["coverage"],
+      "bias"  =scoreSum["bias"],
+      "pit" = scoreSum["pit"],
+      "mae" =scoreSum["mae"],
+      "rmse"  =scoreSum["rmse"],
+      "r2"  =scoreSum["rsq"]
+    ))
+
+    jaspResults[["predanMainContainer"]][["cvContainer"]][["metricTable"]] <- metricSummaryTable
+
+
+    jaspResults[["predanResults"]][["bmaResState"]] <- bmaResState
+
+  }
+  return()
+}
+
+
+.predanBMAWeightsTable <-function(jaspResults,dataset,options,ready){
+  if(!ready || is.null(jaspResults[["predanResults"]][["bmaResState"]])) return()
+
+  if(is.null(jaspResults[["predanMainContainer"]][["predanBMAContainer"]][["bmaWeightsTable"]])){
+    bmaRes <- jaspResults[["predanResults"]][["bmaResState"]]$object
+
+    bmaWeightsTable <- createJaspTable(title = "BMA - Model Weights")
+    bmaWeightsTable$dependOn(c("bmaWeightsTable","bmaWeightsTablePerSlice"))
+    weightMatrix <- bmaRes$weightMatrix
+    bmaWeightsTable$addColumnInfo(name="model",  title="Model", type="string")
+    if(options$"bmaWeightsTablePerSlice") {
+      for (i in 2:ncol(weightMatrix)) {
+        bmaWeightsTable$addColumnInfo(name=paste0("slice",i),  title=paste0("Slice ",i), type="string")
+      }
+    } else{
+      bmaWeightsTable$addColumnInfo(name="weights",  title= "Weights", type="string")
+    }
+
+    bmaWeightsTable[["model"]] <- rownames(weightMatrix)
+
+    if(options$"bmaWeightsTablePerSlice") {
+      for (i in 2:ncol(weightMatrix)) {
+        bmaWeightsTable[[paste0("slice",i)]] <- weightMatrix[,i]
+      }
+    } else{
+      bmaWeightsTable[["weights"]] <- rowMeans(weightMatrix)
+    }
+
+    jaspResults[["predanMainContainer"]][["predanBMAContainer"]][["bmaWeightsTable"]] <- bmaWeightsTable
+
+  }
+
+  return()
+}
+
+
+
 
 
 

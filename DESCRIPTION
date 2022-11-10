@@ -22,7 +22,8 @@ Imports:
   Boom,
   lubridate,
   prophet,
-  BART
+  BART,
+  EBMAforecast
 Suggests:
   testthat
 Remotes:
