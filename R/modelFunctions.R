@@ -1,5 +1,5 @@
 #### bsts functions
-.bstsFitHelper  <- function(trainData,formula,method,niter=500,keepModel =F, ...){
+.bstsFitHelper  <- function(trainData,formula,method,niter=250,keepModel =F, ...){
   trainData$time <- as.numeric(trainData$time)
   ss <- list()
   y <- trainData[[all.vars(formula)[1]]]
@@ -44,7 +44,7 @@
 
 
   colnames(trainData)[colnames(trainData)=="time"] <- "ds"
-  m <- prophet::prophet(...)
+  m <- prophet::prophet(...,weekly.seasonality = F)
   if(formula != as.formula("y ~ time")){
     for(reg in labels(terms(formula))[-1])
       m <- prophet::add_regressor(m,reg)
@@ -53,8 +53,8 @@
 
   model <- prophet::fit.prophet(m,trainData)
 
-  distr <- prophet::predictive_samples(model,trainData)[["yhat"]]
-  return(list(model = model,distr = distr))
+  #distr <- prophet::predictive_samples(model,trainData)[["yhat"]]
+  return(list(model = model,distr = NULL))
 }
 
 
@@ -79,7 +79,7 @@
 ### lin_reg baseline
 
 
-.lmSpikeFitHelper <-  function(trainData,formula,method,niter=2000,keepModel =F , ...){
+.lmSpikeFitHelper <-  function(trainData,formula,method,niter=1000,keepModel =F , ...){
 
   trainData$time <- as.numeric(trainData$time)
   model <- BoomSpikeSlab::lm.spike(formula = formula,niter,data = trainData)
@@ -231,7 +231,7 @@
 
   reg_vars <- colnames(trainData)[colnames(trainData)!="y" & colnames(trainData) %in% labels(terms(formula))]
 
-  model <- BART::wbart(x.train = trainData[,reg_vars],y.train = trainData$y,sparse = T,nkeeptreedraws = 200)
+  model <- BART::wbart(x.train = trainData[,reg_vars],y.train = trainData$y,sparse = T,nkeeptreedraws = 100,ndpost = 100,nskip=100)
 
   return(list(model=model))
 }

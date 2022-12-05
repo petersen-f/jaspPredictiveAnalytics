@@ -275,8 +275,16 @@ Form
             //Layout.columnSpan: 1
             IntegerField{name: "resampleForecastHorizon"; id: "resampleForecastHorizon";  label: qsTr("Test period");defaultValue: 100}
             IntegerField{name: "resampleInitialTraining"; label: qsTr("Training period"); defaultValue: resampleForecastHorizon.value*2}
-            IntegerField{name: "resampleSkip"; label: qsTr("Skip between slices");defaultValue:100}
+            IntegerField{name: "resampleSkip"; label: qsTr("Skip between slices");defaultValue: resampleForecastHorizon.value}
 
+			RadioButtonGroup
+			{
+				name: "resampleSliceStart"
+				title: qsTr("Select slices from:")
+				radioButtonsOnSameRow: true
+				RadioButton{ value: "head"; label: qsTr("Start"); checked: true}
+				RadioButton{ value: "tail"; label: qsTr("End")}
+			}
             IntegerField{name: "resampleMaxSlice"; id: "maxSlices"; label: qsTr("Maximum training slices");defaultValue:5}
             CheckBox{name: "resampleCumulativeCheck"; label: qsTr("Cumulative training")}
 
@@ -284,8 +292,8 @@ Form
 			{
 				name: "resampleCheckShowTrainingPlan"
 				label: qsTr("Show evaluation plan")
-				CheckBox{ name: "resamplePlanPlotEqualDistance"; label: qsTr("Spread points equally")}
-				IntegerField{name: "resamplePlanPlotMaxPlots"; label: "Max slices shown:"; defaultValue: 1; max: maxSlices.value ;min:1}
+				CheckBox{ name: "resamplePlanPlotEqualDistance"; label: qsTr("Spread points equally"); checked: true}
+				IntegerField{name: "resamplePlanPlotMaxPlots"; label: "Max slices shown:"; defaultValue: 5; max: maxSlices.value ;min:1}
 			}
         }
 		Group
@@ -374,7 +382,7 @@ Form
 				{
 
 					name: "fromR"
-					source: selectedModels
+					source: [ { rSource: "plottableModelsQml" } ]
 				}
 				AssignedVariablesList
 				{
@@ -383,6 +391,8 @@ Form
 
 				}
 			}
+			CheckBox{name: "modelsToPlotCredibleInterval"; label: qsTr("Show credible interval")}
+
 		}
 	}
 
@@ -408,7 +418,7 @@ Form
 			{
 				name: "bmaTestPeriod"
 				title: "Evaluation Method"
-				RadioButton{ value: "bmaTestNextSlice"; label: qsTr("Next test slice")}
+				RadioButton{ value: "bmaTestNextSlice"; label: qsTr("Next test slice"); checked: true}
 				RadioButton
 				{
 					value: "bmaSameSlice"
@@ -424,53 +434,138 @@ Form
 				name: "bmaWeightsTable"
 				enabled: doBMA.checked
 				label: qsTr("Model weights")
-				CheckBox{name: "bmaWeightsTablePerSlice"; label: qsTr("Show per test slice")}
+				CheckBox{name: "bmaWeightsTablePerSlice"; label: qsTr("Show per test slice");checked: true}
 			}
 
 		}
 
 	}
+
+
 	Section
 	{
-		title: qsTr("Bayesian Model Averaging")
+		title: qsTr("Future Prediction")
 
-		Group
+
+		VariablesForm
 		{
-			//DropDown
-			//{
-			//	label: qsTr("Bias correction method")
+			preferredHeight: jaspTheme.smallDefaultVariablesFormHeight/2
+			//title: qsTr("Models")
+			AvailableVariablesList
+				{
 
-			//	name: "BMABiasCorrectionMethod"
-			//	values:
- 			//	[
-    		//		{ label: "None", value: "none" },
-    		//		{ label: "Additive", value: "additive"},
-			//		{ label: "Regression", value: "regression"}
-  			//	]
-			//}
-			CheckBox{name: "checkBMA";label: "Perform BMA";id: bmaEnabled}
-			//IntegerField{name: "BMAtrainingPeriod"}
-			CheckBox{name: "checkBMATrainingPlot"; label: "Show averaged predictions"; enabled:bmaEnabled.checked}
+					name: "futurePredictionModels"
+					source:  [ { rSource: "plottableModelsQml" } ]
+
+				}
+				AssignedVariablesList
+				{
+
+					name: "selectedFuturePredictionModel"
+					singleVariable: true
+					height: 30
+
+				}
 
 		}
 
+
 		Group
 		{
-			title: qsTr("Model weights")
-			enabled:bmaEnabled.checked
+			RadioButtonGroup
+			{
+				title: qsTr("Prediction horizon")
+				name: "futurePredPredictionHorizon"
 
-		CheckBox{name: "checkBMAmodelWeights"; label: "Show table"}
-		CheckBox
-		{
-			name: "checkmodelWeightsPlot"
-			label: qsTr("Plot weights over time")
-			IntegerField{name: "modelWeightRunningWindow";label: qsTr("Running mean window:");min: 1;defaultValue:1}
+				RadioButton
+				{
+					name: "days"
+					label: qsTr("Days:")
+					childrenOnSameRow: true
+					IntegerField{name: "futurePredictionDays"; min: 0; defaultValue: 0}
 
+				}
+				RadioButton
+				{
+					name: "timepoints"
+					label: qsTr("Time points")
+					childrenOnSameRow: true
+					IntegerField{name: "futurePredictionPoints"; min: 0;defaultValue: 0}
+				}
+			}
+
+			RadioButtonGroup
+			{
+				title: qsTr("Training period")
+				name: "futurePredTrainingPeriod"
+
+				RadioButton
+				{
+					value: "last"
+					checked: true
+					label: qsTr("Last")
+					childrenOnSameRow: true
+						IntegerField{name: "futurePredTrainingPoints"; afterLabel: qsTr("data points"); defaultValue: 200}
+				}
+				RadioButton{name: "all"; label: qsTr("All data points")}
 
 		}
 	}
+	CheckBox
+	{
+		name: "checkFuturePredictionPlot"
+		label: "Future prediction plot"
+		checked: false
+		CheckBox
+		{
+			name: "futurePredSpreadPointsEqually"
+			label: qsTr("Spread points equally")
+			checked: true
+		}
+	}
 
-		//Group{
+	}
+	//Section
+	//{
+	//	title: qsTr("Bayesian Model Averaging")
+
+	//	Group
+	//	{
+	//		//DropDown
+	//		//{
+	//		//	label: qsTr("Bias correction method")
+
+	//		//	name: "BMABiasCorrectionMethod"
+	//		//	values:
+ 	//		//	[
+    //		//		{ label: "None", value: "none" },
+    //		//		{ label: "Additive", value: "additive"},
+	//		//		{ label: "Regression", value: "regression"}
+  	//		//	]
+	//		//}
+	//		CheckBox{name: "checkBMA";label: "Perform BMA";id: bmaEnabled}
+	//		//IntegerField{name: "BMAtrainingPeriod"}
+	//		CheckBox{name: "checkBMATrainingPlot"; label: "Show averaged predictions"; enabled:bmaEnabled.checked}
+
+	//	}
+
+	//	Group
+	//	{
+	//		title: qsTr("Model weights")
+	//		enabled:bmaEnabled.checked
+
+	//	CheckBox{name: "checkBMAmodelWeights"; label: "Show table"}
+	//	CheckBox
+	//	{
+	//		name: "checkmodelWeightsPlot"
+	//		label: qsTr("Plot weights over time")
+	//		IntegerField{name: "modelWeightRunningWindow";label: qsTr("Running mean window:");min: 1;defaultValue:1}
+
+
+	//	}
+	//}
+
+	//	//Group{
 //
 		//	title: "Future Predictions"
 //
@@ -479,106 +574,114 @@ Form
 //
 //
 		//}
-	}
+	//}
+
+	//Section
+	//{
+
+	//	title: qsTr("Future Predictions")
+	//	columns: 2
+
+	//	CheckBox
+	//	{
+	//		name: "checkBoxFuturePredictions"
+	//		label: qsTr("Predictions")
+
+
+	//		IntegerField{name: "futurePredictions"; label: qsTr("Number of time points");min:1;defaultValue:10}
+
+
+
+	//		RadioButtonGroup
+	//		{
+	//			title: qsTr("Model choice")
+	//			name: "predictionModelChoice"
+	//			radioButtonsOnSameRow: false
+	//			RadioButton
+	//			{
+	//				value: "forecastBMA"
+	//				label: qsTr("BMA model")
+	//				enabled: bmaEnabled.checked
+	//				IntegerField{name: "modelWeightWindow"; label: qsTr("Model weight window");defaultValue: 10; min: 10}
+	//			}
+	//			RadioButton
+	//			{
+	//				childrenOnSameRow: true
+	//				value: "forecastBestModel"
+	//				label: qsTr("Best model based on")
+	//				checked: !bmaEnabled.checked
+	//				DropDown
+	//				{
+	//					name: "forecastModelSelectionMetric"
+	//					id: metricSelection
+	//					values:
+ 	//					[
+    //						{ value: "CRPS", 	label: "modelSelectionCRPS"},
+    //						{ value: "DSS", 	label: "modelSelectionDSS"},
+	//						{ value: "roc", 	label: "modelSelectionROC"},
+	//						{ value: "pr", 		label: "modelSelectionPR"},
+	//						{ value: "brier", 	label: "modelSelectionBrier"}
+
+  	//					]
+	//				}
+
+	//			}
+	//		}
+
+	//	}
+
+	//	Group
+	//	{
+	//		enabled: bmaEnabled.checked
+	//		CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
+	//		CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
+
+
+	//	}
+
+	//}
+	////Section
+	//{
+	//	title: qsTr("Binary Control Analysis")
+	//	//Group
+	//	//{
+	//		CheckBox
+	//		{
+	//			name: "binaryControlChartCheck"
+
+	//			label: "Show binary control chart"
+
+	//			DropDown
+	//			{
+	//				name: "binaryControlMethod"
+	//				id: binaryMethodSelection
+	//				label: "Select Control Method"
+	//				values: ["state space", "rolling average"]
+
+	//			}
+
+	//			DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit")}
+	//			Group
+	//			{
+	//				visible: binaryMethodSelection.currentValue == "state space"
+	//				DoubleField
+	//				{
+	//					name: "binaryStateSpaceNiter"
+	//					label: qsTr("MCMC samples")
+	//					defaultValue: 500
+	//				}
+	//			}
+	//		}
+	//	//}
+	//}
 
 	Section
 	{
+		title: qsTr("Advanced Options")
 
-		title: qsTr("Future Predictions")
-		columns: 2
-
-		CheckBox
-		{
-			name: "checkBoxFuturePredictions"
-			label: qsTr("Predictions")
+		CheckBox{name: 'parallelComputation'; label: 'Parallel model computation';checked: true}
 
 
-			IntegerField{name: "futurePredictions"; label: qsTr("Number of time points");min:1;defaultValue:10}
-
-
-
-			RadioButtonGroup
-			{
-				title: qsTr("Model choice")
-				name: "predictionModelChoice"
-				radioButtonsOnSameRow: false
-				RadioButton
-				{
-					value: "forecastBMA"
-					label: qsTr("BMA model")
-					enabled: bmaEnabled.checked
-					IntegerField{name: "modelWeightWindow"; label: qsTr("Model weight window");defaultValue: 10; min: 10}
-				}
-				RadioButton
-				{
-					childrenOnSameRow: true
-					value: "forecastBestModel"
-					label: qsTr("Best model based on")
-					checked: !bmaEnabled.checked
-					DropDown
-					{
-						name: "forecastModelSelectionMetric"
-						id: metricSelection
-						values:
- 						[
-    						{ value: "CRPS", 	label: "modelSelectionCRPS"},
-    						{ value: "DSS", 	label: "modelSelectionDSS"},
-							{ value: "roc", 	label: "modelSelectionROC"},
-							{ value: "pr", 		label: "modelSelectionPR"},
-							{ value: "brier", 	label: "modelSelectionBrier"}
-
-  						]
-					}
-
-				}
-			}
-
-		}
-
-		Group
-		{
-			enabled: bmaEnabled.checked
-			CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
-			CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
-
-
-		}
-
-	}
-
-	Section
-	{
-		title: qsTr("Binary Control Analysis")
-		//Group
-		//{
-			CheckBox
-			{
-				name: "binaryControlChartCheck"
-
-				label: "Show binary control chart"
-
-				DropDown
-				{
-					name: "binaryControlMethod"
-					id: binaryMethodSelection
-					label: "Select Control Method"
-					values: ["state space", "rolling average"]
-
-				}
-
-				DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit")}
-				Group
-				{
-					visible: binaryMethodSelection.currentValue == "state space"
-					DoubleField
-					{
-						name: "binaryStateSpaceNiter"
-						label: qsTr("MCMC samples")
-						defaultValue: 500
-					}
-				}
-			}
-		//}
 	}
 
 
