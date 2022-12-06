@@ -889,11 +889,22 @@ lagit <- function(a,k) {
 .crossValidationPlanHelper <- function(data,initial = 20,assess = 10,cumulative = TRUE,skip = 10,lag = 0, max_slice = 5,from = c("head","tail")){
   from <- match.arg(from)
   n <- nrow(data)
-  stops <- n - seq(assess, (n - initial), by = skip)
-  if (!cumulative) {
-    starts <- stops - initial + 1
+
+  if(from == "tail"){
+    stops <- n - seq(assess, (n - initial), by = skip)
+    if (!cumulative) {
+      starts <- stops - initial + 1
+    } else {
+      starts <- rep(1, length(stops))
+    }
+
   } else {
-    starts <- rep(1, length(stops))
+    stops <- seq(initial, (n - assess), by = skip + 1)
+    starts <- if (!cumulative) {
+      stops - initial + 1
+    } else {
+      starts <- rep(1, length(stops))
+    }
   }
   in_ind <- mapply(seq, starts, stops, SIMPLIFY = FALSE)
   out_ind <- mapply(seq, stops + 1 - lag, stops + assess, SIMPLIFY = FALSE)
@@ -901,7 +912,15 @@ lagit <- function(a,k) {
   indices <- mapply(merge_lists, in_ind, out_ind, SIMPLIFY = FALSE)
   names(indices) <- paste0("slice",length(indices):1)
 
-  return(do.call(from,args = list(rev(indices),max_slice)))
+  if(from == "tail"){
+    indices <- rev(head(indices,max_slice))
+  }
+  else {
+    names(indices) <- rev(names(indices))
+    indices <- head(indices,max_slice)
+  }
+
+  return(indices)
 
 }
 
@@ -1013,7 +1032,9 @@ lagit <- function(a,k) {
     # remove args if they have zero var from formula
     if(length(preProSpec$method$remove) >0 )
       formula <- update(formula, paste0(".~." , paste0("-",preProSpec$method$remove,collapse = " ")))
+
     if(!is.null(testData)) testData <- predict.preProcess(preProSpec,testData)
+
 
 
   }
@@ -1083,10 +1104,11 @@ lagit <- function(a,k) {
            future::plan(future::multisession,workers = 5),
            future::plan(future::multisession,workers = 5))
   }
-  cvModelObject <- future.apply::future_lapply(X = seq_along(cvPlan),function(i){
+  cvModelObject <- future.apply::future_lapply(X = 1:length(cvPlan),function(i){
     system(sprintf('echo "\n%s\n"', paste0("fitting slice " , i, " of ",model)))
-    .predAnModelFit(trainData = data[cvPlan[[i]]$analysis,],
-                   testData = data[cvPlan[[i]]$assessment,],
+
+    .predAnModelFit(trainData = data[as.character(cvPlan[[i]]$analysis),],
+                   testData = data[as.character(cvPlan[[i]]$assessment),],
                    predictFuture = T,
                    method = model,
                    formula = formula,
@@ -1099,10 +1121,10 @@ lagit <- function(a,k) {
   # time,draw,slice array
   predArray <- array(unlist(l),dim=c(dim(l[[1]]),length(l)),dimnames = list(1:dim(l[[1]])[1],1:dim(l[[1]])[2],names(cvModelObject)))
 
-  realMatrix <- matrix(unlist(lapply(cvModelObject, function(x) x$pred$trueVal)),ncol = length(cvModelObject),
-                       dimnames = list(1:dim(l[[1]])[1],names(cvModelObject))
-                       )
 
+  realMatrix <- matrix(unlist(lapply(cvModelObject, function(x) x$pred$trueVal)),ncol = length(cvModelObject)#,
+                       #dimnames = list(1:dim(l[[1]])[1],names(cvModelObject))
+                       )
 
   predSummary <- aperm(apply(X = predArray,c(1,3) ,
                              function(x) c(mean = mean(x),

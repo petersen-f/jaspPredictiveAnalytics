@@ -282,8 +282,8 @@ Form
 				name: "resampleSliceStart"
 				title: qsTr("Select slices from:")
 				radioButtonsOnSameRow: true
-				RadioButton{ value: "head"; label: qsTr("Start"); checked: true}
-				RadioButton{ value: "tail"; label: qsTr("End")}
+				RadioButton{ value: "head"; label: qsTr("Start")}
+				RadioButton{ value: "tail"; label: qsTr("End"); checked: true}
 			}
             IntegerField{name: "resampleMaxSlice"; id: "maxSlices"; label: qsTr("Maximum training slices");defaultValue:5}
             CheckBox{name: "resampleCumulativeCheck"; label: qsTr("Cumulative training")}
