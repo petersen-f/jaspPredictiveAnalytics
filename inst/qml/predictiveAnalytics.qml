@@ -30,8 +30,8 @@ Form
 				id: methodSelection
 				values:
  				[
-    				{ label: "Manual Bounds", value: "manualBound"},
-    				{ label: "Data Based", value: "stdDevBound"}
+					{ label: "Data Based", value: "stdDevBound"},
+    				{ label: "Manual Bounds", value: "manualBound"}
   				]
 			}
 
@@ -120,6 +120,7 @@ Form
 				name: "controlPlotCheck"
 				label: qsTr("Display control chart")
 				id: controlPlotCheckbox
+				checked: true
 
 
 				CheckBox
@@ -133,8 +134,8 @@ Form
                 	name: "controlLineType"
                 	radioButtonsOnSameRow: true
                 	RadioButton { value: "points";	label: qsTr("Points") }
-                	RadioButton { value: "line";	label: qsTr("Line") }
-                	RadioButton { value: "both";	label: qsTr("Both");	checked: true }
+                	RadioButton { value: "line";	label: qsTr("Line"); checked: true }
+                	RadioButton { value: "both";	label: qsTr("Both")}
             	}
 
 				RadioButtonGroup
@@ -525,155 +526,6 @@ Form
 	}
 
 	}
-	//Section
-	//{
-	//	title: qsTr("Bayesian Model Averaging")
-
-	//	Group
-	//	{
-	//		//DropDown
-	//		//{
-	//		//	label: qsTr("Bias correction method")
-
-	//		//	name: "BMABiasCorrectionMethod"
-	//		//	values:
- 	//		//	[
-    //		//		{ label: "None", value: "none" },
-    //		//		{ label: "Additive", value: "additive"},
-	//		//		{ label: "Regression", value: "regression"}
-  	//		//	]
-	//		//}
-	//		CheckBox{name: "checkBMA";label: "Perform BMA";id: bmaEnabled}
-	//		//IntegerField{name: "BMAtrainingPeriod"}
-	//		CheckBox{name: "checkBMATrainingPlot"; label: "Show averaged predictions"; enabled:bmaEnabled.checked}
-
-	//	}
-
-	//	Group
-	//	{
-	//		title: qsTr("Model weights")
-	//		enabled:bmaEnabled.checked
-
-	//	CheckBox{name: "checkBMAmodelWeights"; label: "Show table"}
-	//	CheckBox
-	//	{
-	//		name: "checkmodelWeightsPlot"
-	//		label: qsTr("Plot weights over time")
-	//		IntegerField{name: "modelWeightRunningWindow";label: qsTr("Running mean window:");min: 1;defaultValue:1}
-
-
-	//	}
-	//}
-
-	//	//Group{
-//
-		//	title: "Future Predictions"
-//
-		//	CheckBox{name: "checkFuturePredictionPlot"; label: "Future prediction plot"}
-		//	CheckBox{name: "checkFuturePredictionTable"; label: "Future out-of-bound probability"}
-//
-//
-		//}
-	//}
-
-	//Section
-	//{
-
-	//	title: qsTr("Future Predictions")
-	//	columns: 2
-
-	//	CheckBox
-	//	{
-	//		name: "checkBoxFuturePredictions"
-	//		label: qsTr("Predictions")
-
-
-	//		IntegerField{name: "futurePredictions"; label: qsTr("Number of time points");min:1;defaultValue:10}
-
-
-
-	//		RadioButtonGroup
-	//		{
-	//			title: qsTr("Model choice")
-	//			name: "predictionModelChoice"
-	//			radioButtonsOnSameRow: false
-	//			RadioButton
-	//			{
-	//				value: "forecastBMA"
-	//				label: qsTr("BMA model")
-	//				enabled: bmaEnabled.checked
-	//				IntegerField{name: "modelWeightWindow"; label: qsTr("Model weight window");defaultValue: 10; min: 10}
-	//			}
-	//			RadioButton
-	//			{
-	//				childrenOnSameRow: true
-	//				value: "forecastBestModel"
-	//				label: qsTr("Best model based on")
-	//				checked: !bmaEnabled.checked
-	//				DropDown
-	//				{
-	//					name: "forecastModelSelectionMetric"
-	//					id: metricSelection
-	//					values:
- 	//					[
-    //						{ value: "CRPS", 	label: "modelSelectionCRPS"},
-    //						{ value: "DSS", 	label: "modelSelectionDSS"},
-	//						{ value: "roc", 	label: "modelSelectionROC"},
-	//						{ value: "pr", 		label: "modelSelectionPR"},
-	//						{ value: "brier", 	label: "modelSelectionBrier"}
-
-  	//					]
-	//				}
-
-	//			}
-	//		}
-
-	//	}
-
-	//	Group
-	//	{
-	//		enabled: bmaEnabled.checked
-	//		CheckBox{name: "checkBoxOutBoundProbabilities"; label: "Out-of-bound probabilities"}
-	//		CheckBox{name: "checkBoxOutBoundPlot"; label: "Future data predictions"}
-
-
-	//	}
-
-	//}
-	////Section
-	//{
-	//	title: qsTr("Binary Control Analysis")
-	//	//Group
-	//	//{
-	//		CheckBox
-	//		{
-	//			name: "binaryControlChartCheck"
-
-	//			label: "Show binary control chart"
-
-	//			DropDown
-	//			{
-	//				name: "binaryControlMethod"
-	//				id: binaryMethodSelection
-	//				label: "Select Control Method"
-	//				values: ["state space", "rolling average"]
-
-	//			}
-
-	//			DoubleField{ name: "binaryControlOutPropLimit"; label: qsTr("Proportion Limit")}
-	//			Group
-	//			{
-	//				visible: binaryMethodSelection.currentValue == "state space"
-	//				DoubleField
-	//				{
-	//					name: "binaryStateSpaceNiter"
-	//					label: qsTr("MCMC samples")
-	//					defaultValue: 500
-	//				}
-	//			}
-	//		}
-	//	//}
-	//}
 
 	Section
 	{

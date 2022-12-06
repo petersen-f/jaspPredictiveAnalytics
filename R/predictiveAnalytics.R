@@ -242,7 +242,9 @@ quantInv <- function(distr, value){
 
 
 .forecastVeriDependencies <- function(){
-  return(c("resampleForecastHorizon",
+  return(c("covariates",
+           "factors",
+           "resampleForecastHorizon",
            "resampleInitialTraining",
            "resampleSkip",
            "resampleMaxSlice",
@@ -790,7 +792,7 @@ lagit <- function(a,k) {
   #stop(gettext(paste0(colnames(featEngData))))
 
   colnames(featEngData) <- decodeColNames(colnames(featEngData))
-  featureEngState$object <- as.data.frame(na.omit(featEngData))
+  featureEngState$object <- as.data.frame(featEngData)
   jaspResults[["predanResults"]][["featureEngState"]] <- featureEngState
   return()
 }
@@ -1445,7 +1447,7 @@ lagit <- function(a,k) {
   if(is.null(jaspResults[["predanResults"]][["bmaResState"]]) && options$checkPerformBma){
 
     bmaResState <- createJaspState()
-    bmaResState$dependOn(c("checkPerformBma","bmaMethod","bmaTestPeriod","bmaSameSlice","selectedModels"))
+    bmaResState$dependOn(c("checkPerformBma","bmaMethod","bmaTestPeriod","bmaSameSlice","selectedModels","bmaTestProp"))
 
     cvRes <- jaspResults[["predanResults"]][["cvResultsState"]]$object
 
@@ -1692,6 +1694,7 @@ lagit <- function(a,k) {
     bmaRes <- jaspResults[["predanResults"]][["bmaResState"]]$object
 
 
+    nrRows <- nrow(dataEng)
     if(options$futurePredTrainingPeriod == "last") dataEng <- tail(dataEng,options$futurePredTrainingPoints)
 
     futureFrame <- .makeEmptyFutureFrame(dataEng = dataEng,options)
@@ -1717,6 +1720,9 @@ lagit <- function(a,k) {
 
     predictionsCombined$model <- as.character(predictionsCombined$model)
     predictionsCombined$model[predictionsCombined$model == "EBMA"] <- "BMA"
+
+    predictionsCombined$tt <- (nrRows+1):(nrRows+length(unique(predictionsCombined$time)))
+
     futurePredState$object <- predictionsCombined
 
 
@@ -1736,7 +1742,7 @@ lagit <- function(a,k) {
      && options$"checkFuturePredictionPlot"){
 
     futurePredPlot <- createJaspPlot(title = "Future prediction plot", height = 480, width = 720)
-    futurePredPlot$dependOn(c("checkFuturePredictionPlot","futurePredSpreadPointsEqually","selectedFuturePredictionModel"))
+    futurePredPlot$dependOn(c(.boundDependencies(),"checkFuturePredictionPlot","futurePredSpreadPointsEqually","selectedFuturePredictionModel"))
 
 
     predictionsCombined <- jaspResults[["predanResults"]][["futurePredState"]]$object
@@ -1758,7 +1764,8 @@ lagit <- function(a,k) {
     names(modelNames) <- names(modelList)
 
     selectedModPlot <- modelNames[names(modelNames) ==options$"selectedFuturePredictionModel"]
-    if("BMA" %in% unique(predictionsCombined$model)) selectedModPlot <- c(selectedModPlot,"BMA")
+    if("BMA" %in% unique(predictionsCombined$model) & options$"selectedFuturePredictionModel" == "BMA")
+      selectedModPlot <- "BMA"
 
     predictionsCombined <- subset(predictionsCombined, model %in% c(selectedModPlot,"Actual"))
 
