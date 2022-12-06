@@ -68,7 +68,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 }
 .predanReadData <- function(options,ready) {
   if(!ready) return()
-  numericVariable <- c(options$dependent,unlist(options$covariates))
+  numericVariable <- c(options$dependent,unlist(options$covariates),options$trainingIndicator)
   numericVariable <- numericVariable[numericVariable != ""]
   nominalVars     <- unlist(options$factors)
   timeVar <- unlist(options$time)
@@ -293,6 +293,16 @@ quantInv <- function(distr, value){
 
   dataControl <- data.frame(y =  dataset[,options[["dependent"]]], time = as.POSIXct( dataset[,options[["time"]]]))
   dataControl$tt <- 1:nrow(dataControl)
+
+  if (options$trainingIndicator != "")
+    idx <- as.logical(dataset[[encodeColNames(options$trainingIndicator)]])
+  else
+    idx <- T
+
+  print(idx)
+
+  #View(dataControl)
+  dataControl <- dataControl[idx,]
 
   if(options$errorBoundMethodDrop == "manualBound" & options$manualBoundMethod == "manualBoundUniform") {
 
@@ -763,6 +773,15 @@ lagit <- function(a,k) {
   featureEngState$dependOn(c("featEngLags","featEngAutoTimeBased","covariates","factors","dependent"))
   #featEngData <- data.frame(y =  dataset[,options[["dependent"]]], time = as.POSIXct( dataset[,options[["time"]]]))
 
+  if (options$trainingIndicator != ""){
+    idx <- as.logical(dataset[[encodeColNames(options$trainingIndicator)]])
+    featureEngStateFuture <- createJaspState()
+
+  }else
+    idx <- T
+
+
+
   featEngData <- dataset[,c(options[["dependent"]],jaspBase::encodeColNames(options$time))]
   if(length(options$covariates)>0)
     featEngData <- cbind(featEngData,dataset[,jaspBase::encodeColNames(options$covariates),drop=F])
@@ -791,9 +810,20 @@ lagit <- function(a,k) {
 
   #stop(gettext(paste0(colnames(featEngData))))
 
-  colnames(featEngData) <- decodeColNames(colnames(featEngData))
+  #colnames(featEngData) <- decodeColNames(colnames(featEngData))
+
+
+  featEngDataFuture <- featEngData[!idx,]
+  featEngData <- featEngData[idx,]
+
+
   featureEngState$object <- as.data.frame(featEngData)
   jaspResults[["predanResults"]][["featureEngState"]] <- featureEngState
+
+  if(options$trainingIndicator != ""){
+    featureEngStateFuture$object <- featEngDataFuture
+    jaspResults[["predanResults"]][["featureEngStateFuture"]] <- featureEngStateFuture
+  }
   return()
 }
 
@@ -1533,84 +1563,9 @@ lagit <- function(a,k) {
 
 
 #### helper functions
-.makeEmptyFutureFrame <- function(dataEng,options){
+.makeEmptyFutureFrame <- function(jaspResults,dataEng,options){
 
-  if(options$"futurePredPredictionHorizon" == "days"){
-    maxPeriods <- 24*60*60*options$"futurePredictionDays" /33
-  } else{
-    maxPeriods <- options$"futurePredictionPoints" + 1
-  }
-
-  futureFrame <- data.frame(y = NA,
-                            time = seq(max(dataEng$time),length.out=maxPeriods,by=33))[-1,]
-
-  if(options$"futurePredPredictionHorizon" == "days"){
-    futureFrame <- futureFrame[as.numeric(format(futureFrame$time, "%H")) >= 8 &
-                                 as.numeric(format(futureFrame$time, "%H")) < 16 &
-                                 as.numeric(format(futureFrame$time, "%d")) < as.numeric(format(max(dataEng$time), "%d")) + options$futurePredictionDays,]
-  }
-
-
-  start <- dataEng$time[which.max(as.numeric(format(dataEng$time, "%d")))]
-
-
-  startOfDays  <- c(start,futureFrame$time[!duplicated(format(futureFrame$time, "%d"))][-1])
-
-  #stop(gettext(paste0(startOfDays)))
-
-
-  futureFrameBefore <- dataEng[which(format(dataEng$time, "%d") == max(format(dataEng$time, "%d"))) ,c("y","time")]
-  futureFrameBefore$predict <- 0
-  futureFrame$predict <- 1
-
-  futureFrame <- rbind(futureFrameBefore,futureFrame)
-
-  print(startOfDays)
-  if(TRUE){
-
-    cols <- c(colnames(futureFrame),
-              c("n_since_day","n_since_jump","t_since_jump",'t_since_day')[
-                c("n_since_day","n_since_jump","t_since_jump",'t_since_day')
-                %in% colnames(dataEng)])
-
-    futureFrame$n_since_day <- 0
-    futureFrame$n_since_day[futureFrame$time %in% startOfDays] <- 1
-
-    futureFrame$t_since_jump <- .getTimeSinceEvent(futureFrame$n_since_day,futureFrame$time,output = "time")
-    futureFrame$n_since_jump <- .getTimeSinceEvent(futureFrame$n_since_day,futureFrame$time,output = "event")
-
-    futureFrame$t_since_day <- .getTimeSinceEvent(futureFrame$n_since_day,futureFrame$time,output = "time")
-    futureFrame$n_since_day <- .getTimeSinceEvent(futureFrame$n_since_day,futureFrame$time,output = "event")
-
-    #futureFrame <- futureFrame[cols]
-
-    #View(futureFrame)
-    #stop(gettext(paste0(colnames(futureFrame))))
-
-  }
-
-
-
-  if("maakstation" %in% decodeColNames(options$factors)){
-
-    modMat <- model.matrix(~.-1,data = data.frame( maakstation = as.factor(rep(c(1,2,3,4,5),length.out= nrow(futureFrame)))))
-
-    futureFrame <- as.data.frame(cbind(futureFrame,modMat))
-    if("maakstation99" %in% colnames(dataEng)) futureFrame$maakstation99 <- 0
-  }
-
-  #colnames(futureFrame) <- colnames(dataEng)[1:ncol(futureFrame)]
-
-
-  if(options$featEngLags > 0)
-    futureFrame <- cbind(futureFrame,as.data.frame(lagit(futureFrame$y,k = 1:options$featEngLags)))
-
-  if(options$featEngAutoTimeBased)
-    futureFrame <- cbind(futureFrame,get_timeseries_signature_date(futureFrame$time))
-
-  futureFrame <- futureFrame[futureFrame$predict == 1,colnames(futureFrame) != "predict"]
-
-
+  futureFrame <- jaspResults[["predanResults"]][["featureEngStateFuture"]]$object
 
   return(futureFrame)
 }
@@ -1678,7 +1633,8 @@ lagit <- function(a,k) {
   if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
 
   if(is.null(jaspResults[["predanResults"]][["futurePredState"]]) &&
-             (options$"futurePredictionDays" > 0 || options$"futurePredictionPoints" > 0)){
+             (options$"futurePredictionDays" > 0 || options$"futurePredictionPoints" > 0 ||
+              !is.null(jaspResults[["predanResults"]][["featureEngStateFuture"]]))){
 
 
     futurePredState <- createJaspState()
@@ -1697,7 +1653,7 @@ lagit <- function(a,k) {
     nrRows <- nrow(dataEng)
     if(options$futurePredTrainingPeriod == "last") dataEng <- tail(dataEng,options$futurePredTrainingPoints)
 
-    futureFrame <- .makeEmptyFutureFrame(dataEng = dataEng,options)
+    futureFrame <- .makeEmptyFutureFrame(jaspResults = jaspResults,dataEng = dataEng,options)
 
 
     modelList <- .createModelListHelper(dataEng,unlist(options$selectedModels))

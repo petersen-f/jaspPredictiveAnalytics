@@ -14,6 +14,7 @@ Form
 		AssignedVariablesList	{ name: "time";				title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true}
 		AssignedVariablesList	{ name: "covariates";		title: qsTr("Covariates");			suggestedColumns: ["scale"];	allowedColumns: ["scale"]}
 		AssignedVariablesList 	{ name: "factors";		title: qsTr("Factors");		allowedColumns: ["ordinal", "nominal", "nominalText"]}
+		AssignedVariablesList	{ name: "trainingIndicator"; title: qsTr("Include in Training"); suggestedColumns: ["scale"]; singleVariable: true}
 	}
 
 
@@ -477,6 +478,14 @@ Form
 			{
 				title: qsTr("Prediction horizon")
 				name: "futurePredPredictionHorizon"
+
+
+				RadioButton
+				{
+					name: "trainingIndicator"
+					label: qsTr("Training indicator")
+					checked: true
+				}
 
 				RadioButton
 				{
