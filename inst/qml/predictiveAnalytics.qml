@@ -244,7 +244,7 @@ Form
 	{
 		title: qsTr("Feature Engineering")
 
-		IntegerField{name: "featEngLags";label: "Number of lags";defaultValue: 0; min: 0}
+		IntegerField{name: "featEngLags";label: "Nr. of lags";defaultValue: 0; min: 0}
 
 		CheckBox{name: "featEngAutoTimeBased"; label: "Automatic time-based features"}
 

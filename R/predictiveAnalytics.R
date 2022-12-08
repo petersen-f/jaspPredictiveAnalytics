@@ -1410,8 +1410,8 @@ lagit <- function(a,k) {
     xBreaks <- pretty(dataPlot[[t_var]])
     yBreaks <- pretty(dataPlot$real)
 
-    dataPlot$type <- as.factor(dataPlot$type)
-    dataPlot$type <- relevel(dataPlot$type,"Data")
+    #dataPlot$type <- as.factor(dataPlot$type)
+    #dataPlot$type <- relevel(dataPlot$type,"Data")
 
     p <- ggplot2::ggplot(dataPlot,ggplot2::aes_string(t_var,"real",color = "type")) + ggplot2::geom_line() +
       ggplot2::geom_line(ggplot2::aes(tt,pred,color=model)) + ggplot2::facet_wrap(facets  = "slice",ncol = 1) +
