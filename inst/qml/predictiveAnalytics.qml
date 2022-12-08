@@ -128,6 +128,7 @@ Form
 				{
 					name: "controlSpreadPointsEqually"
 					label: qsTr("Spread points equally")
+					checked: true
 				}
 				RadioButtonGroup
 
@@ -147,6 +148,8 @@ Form
 					RadioButton { value: "allData";	label: qsTr("All data") }
 					RadioButton { value: "controlBounds";	label: qsTr("Control bounds") }
 				}
+
+				CheckBox{name: "controlPlotGrid"; label: qsTr("Enable grid")}
 
 				CheckBox
 				{
@@ -218,18 +221,19 @@ Form
 				{
 					name: "outlierHistogramCheck"
 					label: qsTr("Histogram")
-					CheckBox
-					{
-						name: "outlierHistogramDensity"
-						label: qsTr("Show densities")
-					}
+					//CheckBox
+					//{
+					//	name: "outlierHistogramDensity"
+					//	label: qsTr("Show densities")
+					//}
 				}
 
 			CheckBox
 			{
 				name: "acfPlotCheck"
 				label: "Autocorrelation function"
-				IntegerField{name:"options$acfLagsMax"; label: qsTr("Lags"); defaultValue: 30}
+				IntegerField{name:"acfLagsMax"; label: qsTr("Lags"); defaultValue: 30}
+				CheckBox{name: "acfPartialCheck";label: qsTr("Partial autocorrelation function")}
 			}
 
 		}
@@ -242,7 +246,7 @@ Form
 
 		IntegerField{name: "featEngLags";label: "Number of lags";defaultValue: 0; min: 0}
 
-		CheckBox{name: "featEngAutoTimeBased"; label: "Automatic time based features"}
+		CheckBox{name: "featEngAutoTimeBased"; label: "Automatic time-based features"}
 
 		//CheckBox{
 		//    name: "featEngAggregateTime"
@@ -254,10 +258,10 @@ Form
 		Group
 		{
 			Layout.columnSpan: 2
-			CheckBox{name: "featEngRemoveZV"; label: qsTr("Remove zero variance variables")}
+			CheckBox{name: "featEngRemoveZV"; label: qsTr("Remove zero-variance variables")}
 			CheckBox{
 				name: "featEngRemoveCor"
-				label: qsTr("Remove highly correlated variables above:")
+				label: qsTr("Remove variables that are more stronger correlated than:")
 				childrenOnSameRow: true
 				DoubleField{ name: "featEngRemoveCorAbove"; defaultValue: 0.8}
 			}
@@ -266,7 +270,7 @@ Form
 	}
 	Section
     {
-        title: qsTr("Forecast Verification")
+        title: qsTr("Forecast Evaluation")
 		Group
 		{
 			Layout.columnSpan: 2
@@ -275,9 +279,8 @@ Form
         {
 			title: qsTr("Evaluation Plan")
             //Layout.columnSpan: 1
-            IntegerField{name: "resampleForecastHorizon"; id: "resampleForecastHorizon";  label: qsTr("Test period");defaultValue: 100}
-            IntegerField{name: "resampleInitialTraining"; label: qsTr("Training period"); defaultValue: resampleForecastHorizon.value*2}
-            IntegerField{name: "resampleSkip"; label: qsTr("Skip between slices");defaultValue: resampleForecastHorizon.value}
+            IntegerField{name: "resampleForecastHorizon"; id: "resampleForecastHorizon";  label: qsTr("Prediction window");defaultValue: 100}
+            IntegerField{name: "resampleInitialTraining"; label: qsTr("Training window"); defaultValue: resampleForecastHorizon.value*2}
 
 			RadioButtonGroup
 			{
@@ -298,21 +301,7 @@ Form
 				IntegerField{name: "resamplePlanPlotMaxPlots"; label: "Max slices shown:"; defaultValue: 5; max: maxSlices.value ;min:1}
 			}
         }
-		Group
-		{
-
-			title: qsTr("Evaluation Metrics")
-			CheckBox{ name: "metricCrps"; 		label: qsTr("Cont. ranked probability score"); checked: true}
-			CheckBox{ name: "metricDss"; 		label: qsTr("Dawid–Sebastiani score"); checked: true}
-			CheckBox{ name: "metricLog"; 		label: qsTr("Log score"); checked: true}
-			CheckBox{ name: "metricCoverage";	label: qsTr("Coverage"); checked: true}
-			CheckBox{ name: "metricBias"; 		label: qsTr("Bias"); checked: true}
-			CheckBox{ name: "metricPit";		label: qsTr("Probability integral transform"); checked: true}
-			CheckBox{ name: "metricMae"; 		label: qsTr("Mean absolute error"); checked: true}
-			CheckBox{ name: "metricRmse"; 		label: qsTr("Root mean squared error"); checked: true}
-			CheckBox{ name: "metricR2"; 		label: qsTr("R²"); checked: true}
-
-		}}
+		}
 
 
 
@@ -320,8 +309,8 @@ Form
 
 		Group
 		{
-			title: qsTr("Model Selection")
-			columns: 2
+			title: qsTr("Model Choice")
+			Layout.columnSpan: 2
 
 			VariablesForm
 			{
@@ -365,7 +354,28 @@ Form
 							}
 
 
+
 						}
+
+
+		Group
+		{
+
+			title: qsTr("Evaluation Metrics")
+			CheckBox{ name: "metricCrps"; 		label: qsTr("Cont. ranked probability score"); checked: true}
+			CheckBox{ name: "metricDss"; 		label: qsTr("Dawid–Sebastiani score"); checked: true}
+			CheckBox{ name: "metricLog"; 		label: qsTr("Log score"); checked: true}
+			CheckBox{ name: "metricCoverage";	label: qsTr("Coverage"); checked: true}
+			CheckBox{ name: "metricBias"; 		label: qsTr("Bias"); checked: true}
+			CheckBox{ name: "metricPit";		label: qsTr("Probability integral transform"); checked: true}
+			CheckBox{ name: "metricMae"; 		label: qsTr("Mean absolute error"); checked: true}
+			CheckBox{ name: "metricRmse"; 		label: qsTr("Root mean squared error"); checked: true}
+			CheckBox{ name: "metricR2"; 		label: qsTr("R²"); checked: true}
+
+		}
+
+
+		
 	}
 
 
@@ -393,7 +403,7 @@ Form
 
 				}
 			}
-			CheckBox{name: "modelsToPlotCredibleInterval"; label: qsTr("Show credible interval")}
+			//CheckBox{name: "modelsToPlotCredibleInterval"; label: qsTr("Show credible interval")}
 
 		}
 	}
@@ -480,28 +490,31 @@ Form
 				name: "futurePredPredictionHorizon"
 
 
-				RadioButton
-				{
-					name: "trainingIndicator"
-					label: qsTr("Training indicator")
-					checked: true
-				}
+				//RadioButton
+				//{
+				//	name: "trainingIndicator"
+				//	label: qsTr("Training indicator")
+				//	checked: true
+				//}
 
-				RadioButton
-				{
-					name: "days"
-					label: qsTr("Days:")
-					childrenOnSameRow: true
-					IntegerField{name: "futurePredictionDays"; min: 0; defaultValue: 0}
+				//RadioButton
+				//{
+				//	name: "timepoints"
+				//	label: qsTr("Time points")
+				//	childrenOnSameRow: true
+					IntegerField{name: "futurePredictionPoints"; afterLabel: qsTr("data points");min: 0;defaultValue: 0}
+				//	checked: true
+				//}
 
-				}
-				RadioButton
-				{
-					name: "timepoints"
-					label: qsTr("Time points")
-					childrenOnSameRow: true
-					IntegerField{name: "futurePredictionPoints"; min: 0;defaultValue: 0}
-				}
+				//RadioButton
+				//{
+				//	name: "days"
+				//	label: qsTr("Days:")
+				//	childrenOnSameRow: true
+				//	IntegerField{name: "futurePredictionDays"; min: 0; defaultValue: 0}
+//
+				//}
+				
 			}
 
 			RadioButtonGroup
@@ -541,6 +554,10 @@ Form
 		title: qsTr("Advanced Options")
 
 		CheckBox{name: 'parallelComputation'; label: 'Parallel model computation';checked: true}
+
+
+		IntegerField{name: "resampleSkip"; label: qsTr("Skip between training slices");defaultValue: resampleForecastHorizon.value}
+
 
 
 	}

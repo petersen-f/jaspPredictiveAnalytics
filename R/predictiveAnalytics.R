@@ -36,21 +36,10 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
     .predanMetricTable(jaspResults,options,ready)
     .predanForecastVerificationResultPlot(jaspResults,options,ready)
-    #.predanComputeBinaryResults(jaspResults,dataset,options,ready)
-    #.predanBinaryControlChart(jaspResults,dataset,options,ready)
 
-    #.predanComputeControlPrediction(jaspResults,dataset,options,ready)
-    #.predanControlPredictionChart(jaspResults,dataset,options,ready)
-    #.predanModelSelectionFitHelper(jaspResults,dataset,options,ready)
-    #.predanSelectedModelPlots(jaspResults,dataset,options,ready)
-#
-    #.predanForecastVerificationModelsHelper(jaspResults,dataset,options,ready)
-    #.predanForecastVerificationModelsTable(jaspResults,dataset,options,ready)
-#
     .predanBMAHelperResults(jaspResults,dataset,options,ready)
     .predanBMAWeightsTable(jaspResults,dataset,options,ready)
-    #.predanBMAPlots(jaspResults,dataset,options,ready)
-    #.predanFuturePredictionHelper(jaspResults,dataset,options,ready)
+
     .predanFuturePredictionResults(jaspResults,dataset,options,ready)
     .predanFuturePredictionPlot(jaspResults,dataset,options,ready)
     .predanFuturePredictionTable(jaspResults,dataset,options,ready)
@@ -224,6 +213,18 @@ quantInv <- function(distr, value){
 
 
 ##### dependencies
+
+
+.modelDependencies <- function(){
+  return(c("dependent",
+           "time",
+           "covariates",
+           "factors",
+           "trainingIndicator"
+           ))
+}
+
+
 .boundDependencies <- function(){
   return(c("dependent","time","errorBoundMethodDrop",
            "manualBoundMethod",
@@ -263,6 +264,15 @@ quantInv <- function(distr, value){
 }
 
 
+.bmaResultsDependencies <- function(){
+  return(c("checkPerformBma",
+           "bmaMethod",
+           "bmaTestPeriod",
+           "bmaTestProp"
+           ))
+}
+
+
 
 
 
@@ -283,7 +293,7 @@ quantInv <- function(distr, value){
     #TODO: insert depend on all boundary setting
     predanBounds <- .predanComputeBounds(dataset,options)
     predanBoundsState$object <- predanBounds
-    predanBoundsState$dependOn(.boundDependencies())
+    predanBoundsState$dependOn(c(.modelDependencies(),.boundDependencies()))
     jaspResults[["predanResults"]][["predanBounds"]] <- predanBoundsState
   }
 
@@ -422,7 +432,7 @@ quantInv <- function(distr, value){
 
 
 
-  predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720)
+  predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720,dependencies = "controlPlotGrid")
   p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(.data[[t_var]],y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
     ggplot2::geom_hline(na.rm = T,yintercept = upperLimit,linetype="dashed",color="darkred") +
     ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred") +
@@ -438,12 +448,19 @@ quantInv <- function(distr, value){
     p <- p + ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
                                              plotLimit[[1]]))
 
-  p <- p + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
+  p <- p + jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() +
     ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1)) +
-    ggplot2::scale_y_continuous(name = "y",breaks = yBreaks,limits = range(yBreaks)) +
-    ggplot2::scale_x_continuous(name = "time",breaks = xBreaks,limits = range(xBreaks))
+    ggplot2::scale_y_continuous(name = "Y",breaks = yBreaks,limits = range(yBreaks)) +
+    ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks))
+
+  if(options$controlPlotGrid)
+    p <- p + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid)
 
   predanControlPlot$plotObject <- p
+
+
+
+
   #jaspResults[["testPlot"]] <- predanControlPlot
   if(!zoom)
     predanDescriptivesContainer[["predanControlPlot"]] <- predanControlPlot
@@ -457,7 +474,7 @@ quantInv <- function(distr, value){
 .predanACFDescriptives <- function(jaspResults,dataset,options,ready){
   if((!options$acfPlotCheck || !ready) || !is.null(jaspResults[["predanMainContainer"]][["predanDiagnosticsContainer"]][["acfPlots"]])) return()
 
-  acfPlots <- createJaspContainer(title= gettext("Autocorrelation Function Plots"))
+  acfPlots <- createJaspContainer(title= gettext("Autocorrelation Function Plots"),dependencies = "acfPartialCheck")
   # TODO add dependencies
   predanResults <- jaspResults[["predanResults"]][["predanBounds"]]$object
   dataControl <- predanResults[[1]]
@@ -509,13 +526,14 @@ quantInv <- function(distr, value){
 
   predanACFPlot <- createJaspPlot(title= "Autocorrelation Function", height = 340, width = 480)
 
-  predanPACFPlot <- createJaspPlot(title= "Partial Autocorrelation Function", height = 340, width = 480)
+  predanPACFPlot <- createJaspPlot(title= "Partial Autocorrelation Function", height = 340, width = 480,dependencies = "acfPartialCheck")
 
   predanACFPlot$plotObject <- acfPlot
   predanPACFPlot$plotObject <- pacfPlot
 
   acfPlots[["predanACFPlot"]] <- predanACFPlot
-  acfPlots[["predanPACFPlot"]] <- predanPACFPlot
+  if(options$acfPartialCheck)
+    acfPlots[["predanPACFPlot"]] <- predanPACFPlot
   return()
 }
 
@@ -551,14 +569,17 @@ quantInv <- function(distr, value){
   h <- hist(dataControl$y, plot = F, breaks = binWidthType)
   xticks <- base::pretty(c(dataControl$y, h$breaks), min.n = 3)
 
-  if (options$outlierHistogramDensity)
-    yhigh <- max(h$counts)
+  #if (options$outlierHistogramDensity)
+  #  yhigh <- max(h$counts)
 
   p <- ggplot2::ggplot(dataControl,
                        ggplot2::aes(x= y,
                                     binwidth = 0.5))
 
-  if(!options$outlierHistogramDensity){
+
+
+
+  #if(!options$outlierHistogramDensity){
     p <- p + ggplot2::geom_histogram(mapping = ggplot2::aes(
       y= ..count.. ,
       fill = outBound),
@@ -568,37 +589,38 @@ quantInv <- function(distr, value){
       position = "stack") +
       ggplot2::scale_color_manual(values = c("#868686FF", "#EFC000FF"))  +
       ggplot2::guides(color = "none") +
+      ggplot2::scale_x_continuous(name = "Y",breaks = xticks) +
       ggplot2::scale_y_continuous(name = "Count",breaks = base::pretty(c(0, h$counts))) +
       ggplot2::scale_fill_manual(values=c("#4E84C4","#D16103"))
 
-  } else {
-    dftmp <- data.frame(x = range(xticks), y = range( c(0,  max(h$density))))
-    p <- p + ggplot2::geom_line(data = dftmp,
-                                mapping = ggplot2::aes(x = .data$x,
-                                                       y = .data$y), color = "white", alpha = 0)
-    p <- p + ggplot2::geom_histogram(mapping = ggplot2::aes(
-      y= ..count.. / (sum(..count..) * binwidth) ,
-      fill = outBound),
-      colour= "black",
-      size     = .7,
-      binwidth = binWidthType,
-      breaks = h[["breaks"]],
-      position = "stack") +
-      ggplot2::geom_density() +
-      ggplot2::scale_color_manual(values = c("#868686FF", "#EFC000FF"))  +
-      ggplot2::scale_x_continuous( breaks = xticks,limits = c(xticks[1],max(xticks))) +
-      ggplot2::guides(color = "none") +
-      ggplot2::scale_y_continuous(name = "Density") +
-      ggplot2::scale_fill_manual(values=c("#4E84C4","#D16103")) +
-      ggplot2::guides(color = FALSE)
-  }
-
+  #} else {
+  #  #dftmp <- data.frame(x = range(xticks), y = range( c(0,  max(h$density))))
+  #  #p <- p + ggplot2::geom_line(data = dftmp,
+  #  #                            mapping = ggplot2::aes(x = .data$x,
+  #  #                                                   y = .data$y), color = "white", alpha = 0)
+  #  p <- p + ggplot2::geom_histogram(mapping = ggplot2::aes(
+  #    y= ..density..,
+  #    fill = outBound),
+  #    colour= "black",
+  #    size     = .7,
+  #    binwidth = binWidthType,
+  #    breaks = xticks,
+  #    position = "stack") +
+  #    ggplot2::geom_density(mapping = ggplot2::aes(fill=NULL)) +
+  #    ggplot2::scale_color_manual(values = c("#868686FF", "#EFC000FF"))  +
+  #    ggplot2::scale_x_continuous( breaks = xticks,limits = c(xticks[1],max(xticks))) +
+  #    ggplot2::guides(color = "none") +
+  #    ggplot2::scale_y_continuous(name = "Density") +
+  #    ggplot2::scale_fill_manual(values=c("#4E84C4","#D16103")) +
+  #    ggplot2::guides(color = FALSE)
+  #}
+#
   p <- jaspGraphs::themeJasp(p)
-
-  if(options$outlierHistogramDensity){
-    p <- p + ggplot2::theme(axis.ticks.y = ggplot2::element_blank(),
-                            axis.text.y = ggplot2::element_blank())
-  }
+#
+  #if(options$outlierHistogramDensity){
+  #  p <- p + ggplot2::theme(axis.ticks.y = ggplot2::element_blank(),
+  #                          axis.text.y = ggplot2::element_blank())
+  #}
 
   histogramPlot$plotObject <- p
 
@@ -643,7 +665,7 @@ quantInv <- function(distr, value){
   summaryTable$addColumnInfo(name="max",      title=gettext("Maximum"),   type="number")
   summaryTable$addColumnInfo(name="valid",    title=gettext("Valid"),   type="integer")
   #summaryTable$addColumnInfo(name="missing",  title=gettext("Missing"),   type="integer")
-  summaryTable$addColumnInfo(name="percent",  title=gettext("Percent"),   type="number", format= "dp:1;pc")
+  summaryTable$addColumnInfo(name="percent",  title=gettext("Percent"),   type="number", format= "pc;dp:2")
   summaryTable$addColumnInfo(name="deviation",title=gettext("Average Deviation"),   type="number")
 
   tableRes <- do.call(data.frame,
@@ -672,7 +694,7 @@ quantInv <- function(distr, value){
   tableResAll$outBoundArea = "All"
 
   tableRes <- rbind(tableRes,tableResAll)
-  tableRes$percent = tableRes[,6]/nrow(dataControl)
+  tableRes$percent = round(tableRes[,6]/nrow(dataControl),4)
 
   tableDeviation <- do.call(data.frame,
                             aggregate( distance~ outBoundArea,
@@ -717,9 +739,9 @@ quantInv <- function(distr, value){
       end <- nrow(dataControl)
 
     dataControl <- dataControl[start:end,]
-    title <- "Control Summary Table - Focused"
+    title <- "Outlier Table - Focused"
   } else
-    title <- "Control Summary Table"
+    title <- "Outlier Table"
 
   outlierTable <- createJaspTable(title = title)
 
@@ -729,7 +751,7 @@ quantInv <- function(distr, value){
     outlierTable$transpose <- TRUE
 
 
-  outlierTable$addColumnInfo(name= "time",      title = "tt point",             type = "integer")
+  outlierTable$addColumnInfo(name= "time",      title = "Time",             type = "integer")
 
   outlierTable$addColumnInfo(name="variable",   title = "Control area",           type = "string")
 
@@ -739,7 +761,7 @@ quantInv <- function(distr, value){
 
   for(i in dataControl$tt[dataControl$outBound]){
     row <- list(
-      tt = dataControl$tt[i],
+      time = dataControl$tt[i],
       variable = dataControl$outBoundArea[i],
       value = dataControl$y[i],
       deviation = dataControl$distance[i])
@@ -836,8 +858,8 @@ lagit <- function(a,k) {
   dataControl <- jaspResults[["predanResults"]][["predanBounds"]]$object[[1]]
 
   if(is.null(jaspResults[["predanResults"]][["cvPlanState"]])){
-    cvPlanState <- createJaspState(dependencies = c(.boundDependencies(),.forecastVeriDependencies()))
-    cvPlanState$object <- .crossValidationPlanHelper(data = dataControl,
+    cvPlanState <- createJaspState(dependencies = c(.modelDependencies(),.forecastVeriDependencies()))
+    cvPlanState$object <- .crossValidationPlanHelper(data = na.omit(dataControl),
                                                      initial = options$resampleInitialTraining,
                                                      assess = options$resampleForecastHorizon,
                                                      cumulative = options$resampleCumulativeCheck,
@@ -850,7 +872,7 @@ lagit <- function(a,k) {
   if(is.null(jaspResults[["predanMainContainer"]][["cvContainer"]][["cvPlanPlot"]]) && options$resampleCheckShowTrainingPlan){
     cvPlot <- createJaspPlot(width = 720,height = 180*min(c(
       length(jaspResults[["predanResults"]][["cvPlanState"]]$object), options$resamplePlanPlotMaxPlots)))
-    cvPlot$dependOn(c(.boundDependencies(),
+    cvPlot$dependOn(c(.modelDependencies(),
                       .forecastVeriDependencies(),
                       "resampleCheckShowTrainingPlan",
                       "resamplePlanPlotEqualDistance",
@@ -865,11 +887,11 @@ lagit <- function(a,k) {
 
   if(is.null(jaspResults[["predanResults"]][["cvResultsState"]])){
     if(length(options$selectedModels) == 0) return()
-    cvResultsState <- createJaspState(dependencies = c(.boundDependencies(),
+    cvResultsState <- createJaspState(dependencies = c(.modelDependencies(),
                                                        .forecastVeriDependencies(),
                                                        "selectedModels"))
 
-    dataEng <- jaspResults[["predanResults"]][["featureEngState"]]$object
+    dataEng <- na.omit(jaspResults[["predanResults"]][["featureEngState"]]$object)
 
     modelList <- .createModelListHelper(dataEng,unlist(options$selectedModels))
 
@@ -1308,7 +1330,7 @@ lagit <- function(a,k) {
     plotMods <- mods[which(modsFull %in% options$"modelsToPlot")]
     slices <- dimnames(cvRes[[1]]$realMatrix)[[2]]
 
-    cvResPlot <- createJaspPlot(title = "CV Plots",width = 720,height = 180*length(slices))
+    cvResPlot <- createJaspPlot(title = "Prediction Plots",width = 720,height = 180*length(slices))
     cvResPlot$dependOn(c("modelsToPlot","checkPerformBma"))
 
     mods <- names(cvRes)
@@ -1355,7 +1377,7 @@ lagit <- function(a,k) {
 
 
     dataPlot <- dplyr::left_join(dataPlot,pred)
-    dataPlot$type <- "Actual"
+    dataPlot$type <- "Data"
 
     #BMA
 
@@ -1387,6 +1409,9 @@ lagit <- function(a,k) {
     dataPlot <- subset(dataPlot,slice %in% slices & (model %in% plotMods | is.na(model)))
     xBreaks <- pretty(dataPlot[[t_var]])
     yBreaks <- pretty(dataPlot$real)
+
+    dataPlot$type <- as.factor(dataPlot$type)
+    dataPlot$type <- relevel(dataPlot$type,"Data")
 
     p <- ggplot2::ggplot(dataPlot,ggplot2::aes_string(t_var,"real",color = "type")) + ggplot2::geom_line() +
       ggplot2::geom_line(ggplot2::aes(tt,pred,color=model)) + ggplot2::facet_wrap(facets  = "slice",ncol = 1) +
@@ -1477,7 +1502,8 @@ lagit <- function(a,k) {
   if(is.null(jaspResults[["predanResults"]][["bmaResState"]]) && options$checkPerformBma){
 
     bmaResState <- createJaspState()
-    bmaResState$dependOn(c("checkPerformBma","bmaMethod","bmaTestPeriod","bmaSameSlice","selectedModels","bmaTestProp"))
+    bmaResState$dependOn(c(.modelDependencies(),
+                         .bmaResultsDependencies()))
 
     cvRes <- jaspResults[["predanResults"]][["cvResultsState"]]$object
 
@@ -1563,9 +1589,9 @@ lagit <- function(a,k) {
 
 
 #### helper functions
-.makeEmptyFutureFrame <- function(jaspResults,dataEng,options){
+.makeEmptyFutureFrame <- function(dataEngFuture,dataEng,options){
 
-  futureFrame <- jaspResults[["predanResults"]][["featureEngStateFuture"]]$object
+  futureFrame <- dataEngFuture
 
   return(futureFrame)
 }
@@ -1630,21 +1656,24 @@ lagit <- function(a,k) {
 
 
 .predanFuturePredictionResults <- function(jaspResults,dataset,options,ready){
-  if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
+  if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]]) || options$"futurePredictionPoints" == 0 ) return()
 
   if(is.null(jaspResults[["predanResults"]][["futurePredState"]]) &&
-             (options$"futurePredictionDays" > 0 || options$"futurePredictionPoints" > 0 ||
+             (options$"futurePredictionPoints" > 0 ||
               !is.null(jaspResults[["predanResults"]][["featureEngStateFuture"]]))){
 
 
     futurePredState <- createJaspState()
-    futurePredState$dependOn(c("futurePredPredictionHorizon",
+    futurePredState$dependOn(c(.modelDependencies(),
+                               "selectedModels",
+                               "futurePredPredictionHorizon",
                                "futurePredictionDays",
                                "futurePredictionPoints",
                                "futurePredTrainingPeriod",
                                "futurePredTrainingPoints"))
 
     dataEng <- jaspResults[["predanResults"]][["featureEngState"]]$object
+    dataEngFuture <- jaspResults[["predanResults"]][["featureEngStateFuture"]]$object
 
 
     bmaRes <- jaspResults[["predanResults"]][["bmaResState"]]$object
@@ -1653,11 +1682,26 @@ lagit <- function(a,k) {
     nrRows <- nrow(dataEng)
     if(options$futurePredTrainingPeriod == "last") dataEng <- tail(dataEng,options$futurePredTrainingPoints)
 
-    futureFrame <- .makeEmptyFutureFrame(jaspResults = jaspResults,dataEng = dataEng,options)
+    futureFrame <- .makeEmptyFutureFrame(dataEngFuture,dataEng = dataEng,options)
+
 
 
     modelList <- .createModelListHelper(dataEng,unlist(options$selectedModels))
 
+
+    #error handling when covariates present but prediction points longer than actual
+    #length(options$covariates) > 0 && length(options$factors) > 0
+    if(options$futurePredictionPoints > nrow(futureFrame)){
+      errorPlot <- createJaspPlot()
+      errorPlot$setError(gettext("Cannot compute forecast. Larger forecast horizon requested than indicated by 'Include in Training' variable. Reduce forecast horizon or change training indicator"))
+      jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- errorPlot
+
+      return()
+    } else{
+      jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- NULL
+    }
+
+    futureFrame <- head(futureFrame,options$futurePredictionPoints)
 
 
 
@@ -1698,7 +1742,18 @@ lagit <- function(a,k) {
      && options$"checkFuturePredictionPlot"){
 
     futurePredPlot <- createJaspPlot(title = "Future prediction plot", height = 480, width = 720)
-    futurePredPlot$dependOn(c(.boundDependencies(),"checkFuturePredictionPlot","futurePredSpreadPointsEqually","selectedFuturePredictionModel"))
+    futurePredPlot$dependOn(c(.modelDependencies(),
+                              .boundDependencies(),
+                              "futurePredictionPoints",
+                              "checkFuturePredictionPlot",
+                              "futurePredSpreadPointsEqually",
+                              "selectedFuturePredictionModel",
+                              "selectedModels",
+                              "futurePredPredictionHorizon",
+                              "futurePredictionDays",
+                              "futurePredictionPoints",
+                              "futurePredTrainingPeriod",
+                              "futurePredTrainingPoints"))
 
 
     predictionsCombined <- jaspResults[["predanResults"]][["futurePredState"]]$object
@@ -1734,8 +1789,8 @@ lagit <- function(a,k) {
     plotLimit <- predanResults[["plotLimit"]]
 
 
-    xBreaks <- pretty(predictionsCombined[[t_var]])
-    yBreaks <- pretty(plotLimit)
+    xBreaks <- jaspGraphs::getPrettyAxisBreaks(predictionsCombined[[t_var]])
+    yBreaks <- jaspGraphs::getPrettyAxisBreaks(plotLimit)
 
 
 
