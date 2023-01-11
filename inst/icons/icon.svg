@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' class='svglite' width='84.00pt' height='84.00pt' viewBox='0 0 84.00 84.00'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.00;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+  ]]></style>
+</defs>
+<rect width='100%' height='100%' style='stroke: none; fill: none;'/>
+<defs>
+  <clipPath id='cpMC4wMHw4NC4wMHwwLjAwfDg0LjAw'>
+    <rect x='0.00' y='0.00' width='84.00' height='84.00' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw4NC4wMHwwLjAwfDg0LjAw)'>
+<rect x='0.00' y='0.00' width='84.00' height='84.00' style='stroke-width: 1.07; stroke: none;' />
+</g>
+<defs>
+  <clipPath id='cpOC4yMnw3OC41Mnw1LjQ4fDc1Ljc4'>
+    <rect x='8.22' y='5.48' width='70.30' height='70.30' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpOC4yMnw3OC41Mnw1LjQ4fDc1Ljc4)'>
+<rect x='8.22' y='5.48' width='70.30' height='70.30' style='stroke-width: 1.07; stroke: none;' />
+<polygon points='49.76,29.59 56.15,17.61 62.54,15.20 68.93,13.14 75.33,-0.023 75.33,44.00 68.93,48.36 62.54,41.61 56.15,35.22 49.76,38.40 ' style='stroke-width: 0.00; stroke: none; fill: #B3B3B3;' />
+<polyline points='49.76,29.59 56.15,17.61 62.54,15.20 68.93,13.14 75.33,-0.023 ' style='stroke-width: 1.07; stroke: none;' />
+<polyline points='75.33,44.00 68.93,48.36 62.54,41.61 56.15,35.22 49.76,38.40 ' style='stroke-width: 1.07; stroke: none;' />
+<polyline points='17.81,64.78 24.20,62.39 30.59,68.36 36.98,58.55 43.37,52.00 49.76,34.00 ' style='stroke-width: 3.20; stroke: #FB8C00; stroke-linecap: butt;' />
+<polyline points='49.76,34.00 56.15,26.41 62.54,28.41 68.93,30.75 75.33,21.99 ' style='stroke-width: 1.49; stroke: #6B767E; stroke-dasharray: 1.99,5.98; stroke-linecap: butt;' />
+<line x1='17.81' y1='31.76' x2='75.33' y2='31.76' style='stroke-width: 2.13; stroke: #C65000; stroke-dasharray: 11.38,11.38; stroke-linecap: butt;' />
+<line x1='11.41' y1='75.78' x2='11.41' y2='10.98' style='stroke-width: 8.54; stroke: #6B767E; stroke-linecap: butt;' />
+<line x1='11.41' y1='74.85' x2='75.33' y2='74.85' style='stroke-width: 8.54; stroke: #6B767E; stroke-linecap: butt;' />
+</g>
+<g clip-path='url(#cpMC4wMHw4NC4wMHwwLjAwfDg0LjAw)'>
+</g>
+</svg>
