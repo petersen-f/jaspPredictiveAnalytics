@@ -361,7 +361,7 @@ quantInv <- function(distr, value){
 }
 
 .predanPlotsDescriptives <- function(jaspResults,dataset,options,ready) {
-  if(!ready) return()
+  #if(!ready) return()
 
   predanDescriptivesContainer <- jaspResults[["predanMainContainer"]][["predanDescriptivesContainer"]]
 
@@ -371,12 +371,27 @@ quantInv <- function(distr, value){
 
 
 
-  if(options$controlPlotCheck)
-    .predanBasicControlPlot(jaspResults,predanResults,predanDescriptivesContainer,options,zoom=F)
+  if(options$controlPlotCheck){
 
-  if(options$controlPlotZoomCheck && options$zoomPeriodEnd >0)
-    .predanBasicControlPlot(jaspResults,predanResults,predanDescriptivesContainer,options,zoom=T)
+    title <- "Basic Control Plot"
+    predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720,dependencies = "controlPlotGrid")
 
+    predanDescriptivesContainer[["predanControlPlot"]] <- predanControlPlot
+
+    .predanBasicControlPlotFill(jaspResults,predanResults,predanDescriptivesContainer,options,ready,zoom=F)
+
+  }
+
+  if(options$controlPlotZoomCheck && options$zoomPeriodEnd >0){
+    title <- "Basic Control Plot - Focused"
+    predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720,dependencies = "controlPlotGrid")
+
+    predanDescriptivesContainer[["predanControlPlotZoom"]] <- predanControlPlot
+
+
+    .predanBasicControlPlotFill(jaspResults,predanResults,predanDescriptivesContainer,options,ready,zoom=T)
+
+  }
 
   #jaspResults[["predanMainContainer"]][["predanDescriptivePlots"]] <- predanDescriptivePlots
   return()
@@ -384,7 +399,8 @@ quantInv <- function(distr, value){
 
 
 
-.predanBasicControlPlot <- function(jaspResults,predanResults,predanDescriptivesContainer,options,zoom){
+.predanBasicControlPlotFill <- function(jaspResults,predanResults,predanDescriptivesContainer,options,ready,zoom){
+  if(!ready) return()
 
   controlData <- predanResults[["dataControl"]]
 
@@ -392,7 +408,7 @@ quantInv <- function(distr, value){
   lowerLimit <- predanResults[["lowerLimit"]]
   plotLimit <- predanResults[["plotLimit"]]
 
-  title <- "Basic Control Plot"
+
   if(zoom){
     start <- options$zoomPeriodStart
     end <- options$zoomPeriodEnd
@@ -400,7 +416,6 @@ quantInv <- function(distr, value){
       end <- nrow(controlData)
 
     controlData <- controlData[start:end,]
-    title <- "Basic Control Plot - Focused"
   }
 
 
@@ -456,16 +471,16 @@ quantInv <- function(distr, value){
   if(options$controlPlotGrid)
     p <- p + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid)
 
-  predanControlPlot$plotObject <- p
+  #predanControlPlot$plotObject <- p
 
 
 
 
   #jaspResults[["testPlot"]] <- predanControlPlot
   if(!zoom)
-    predanDescriptivesContainer[["predanControlPlot"]] <- predanControlPlot
+    predanDescriptivesContainer[["predanControlPlot"]]$plotObject <- p
   else
-    predanDescriptivesContainer[["predanControlPlotZoom"]] <- predanControlPlot
+    predanDescriptivesContainer[["predanControlPlotZoom"]]$plotObject <- p
   return()
 }
 
