@@ -534,17 +534,32 @@ Form
 
 		}
 	}
-	CheckBox
+
+	Group 
 	{
-		name: "checkFuturePredictionPlot"
-		label: "Future prediction plot"
-		checked: false
+
+	
 		CheckBox
 		{
-			name: "futurePredSpreadPointsEqually"
-			label: qsTr("Spread points equally")
-			checked: true
+			name: "checkFuturePredictionPlot"
+			label: "Future prediction plot"
+			checked: false
+			CheckBox
+			{
+				name: "futurePredSpreadPointsEqually"
+				label: qsTr("Spread points equally")
+				checked: true
+			}
+			
 		}
+		CheckBox
+		{
+			name: "futurePredReportingCheck"
+			label: "Reporting mode"
+			CIField{name: "futurePredThreshold"; label: "Out-of-bound probability threshold"}
+		
+		}
+
 	}
 
 	}

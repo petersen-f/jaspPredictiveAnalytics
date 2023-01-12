@@ -183,31 +183,7 @@ quantInv <- function(distr, value){
     ecdf(distr)(value)
 }
 
-
-
-
-### helper function that applies BMA weights to predictions
-.bmaFuturePrediction <- function(fitBMAObject, modelListFuturePredictions, weightWindow,limits) {
-  modelWeights <- colMeans(tail(t(fitBMAObject$weights), weightWindow))
-  aWeights <- colMeans(tail(t(fitBMAObject$biasCoefs[1, , ]), weightWindow))
-  bWeights <- colMeans(tail(t(fitBMAObject$biasCoefs[2, , ]), weightWindow))
-
-  biasCorrectedPredictionList <- lapply(X = 1:length(modelListFuturePredictions), FUN = function(x) aWeights[x] + bWeights[x] * modelListFuturePredictions[[x]])
-  names(biasCorrectedPredictionList) <- names(modelListFuturePredictions)
-  weightedPredictions <- lapply(X = 1:length(modelListFuturePredictions), FUN = function(x) biasCorrectedPredictionList[[x]] * modelWeights[x])
-  # add BMA model
-  biasCorrectedPredictionList$BMA <- Reduce("+", weightedPredictions)
-  sumPred2 <- lapply(biasCorrectedPredictionList, .extractQuantiles)
-  sumPredLimitsUpper <- lapply(biasCorrectedPredictionList,function(x) 1-quantInvVec(t(x),limits[1]))
-  sumPredLimitsLower <- lapply(biasCorrectedPredictionList,function(x) quantInvVec(t(x),limits[2]))
-  sumPred2 <- lapply(X = 1:length(sumPred2),function(x) cbind(sumPred2[[x]],upperProb = sumPredLimitsUpper[[x]]))
-  sumPred2 <- lapply(X = 1:length(sumPred2),function(x) cbind(sumPred2[[x]],lowerProb = sumPredLimitsLower[[x]]))
-
-  sumPred2 <- lapply(X = 1:length(sumPred2), function(x) cbind(sumPred2[[x]], model = names(biasCorrectedPredictionList)[x]))
-
-  sumPred2 <- do.call("rbind", sumPred2)
-  return(sumPred2)
-}
+quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
@@ -1611,7 +1587,8 @@ lagit <- function(a,k) {
   return(futureFrame)
 }
 
-.adjustFuturePredictions <- function(predList,dataEng,bmaRes = NULL,futureFrame,options){
+# function computes credible interval per prediction model and computes BMA predictions
+.adjustFuturePredictions <- function(predList,bmaRes = NULL,futureFrame,upperLimit,lowerLimit,options){
 
 
 
@@ -1619,7 +1596,10 @@ lagit <- function(a,k) {
                         function(x)
                           data.frame(mean = rowMeans(x$pred$dist,na.rm = T),
                                      lowerCI = apply(x$pred$dist,1,quantile,probs= 0.025,na.rm = T),
-                                     higherCI= apply(x$pred$dist,1,quantile,probs= 0.975,na.rm = T)
+                                     higherCI= apply(x$pred$dist,1,quantile,probs= 0.975,na.rm = T),
+                                     lowerLimitProb = apply(x$pred$dist, 1, quantInv,lowerLimit),
+                                     upperLimitPrib = 1 - apply(x$pred$dist, 1, quantInv,upperLimit)
+
                           ))
   names(predSummary)
   predListAdjusted <- list()
@@ -1629,7 +1609,8 @@ lagit <- function(a,k) {
 
     bmaRes <- bmaRes$res[[length(bmaRes)]]
 
-    for(i in 1:3){
+    #apply model weighst and optional bias adjustment to credible interval and mean prediction
+    for(i in 1:5){
       d <- as.matrix(as.data.frame(sapply(predSummary,'[',i,simplify = "matrix")))
       colnames(d) <- bmaRes@modelNames
       predListAdjusted[[i]] <- EBMAforecast::EBMApredict(EBMAmodel = bmaRes,Predictions = d)@predTest[,,1]
@@ -1637,7 +1618,7 @@ lagit <- function(a,k) {
     }
 
   } else{
-    predListAdjusted <- lapply(1:3,function(i){
+    predListAdjusted <- lapply(1:5,function(i){
       d <- as.matrix(as.data.frame(sapply(predSummary,'[',i,simplify = "matrix")))
       colnames(d) <- names(predList)
       d
@@ -1646,12 +1627,18 @@ lagit <- function(a,k) {
   #names(predListAdjusted) <- c("mean","lwr","upr")
   names(predListAdjusted) <- "x"
 
-  predictionsCombined <- do.call(cbind,lapply(predListAdjusted,as.data.frame.table))[,c(1:3,6,9)]
-  colnames(predictionsCombined) <- c("tt","model","mean","lwr","upr")
+  predictionsCombined <- do.call(cbind,lapply(predListAdjusted,as.data.frame.table))[,c(1:3,6,9,12,15)]
+  colnames(predictionsCombined) <- c("tt","model","mean","lwr","upr","lwrProb","uprProb")
   predictionsCombined$time <- futureFrame$time
 
 
-  predictionsCombined$tt <- NA
+  predictionsCombined$tt <- futureFrame$tt
+
+  predictionsCombined$model <- as.character(predictionsCombined$model)
+  predictionsCombined$model[predictionsCombined$model == "EBMA"] <- "BMA"
+
+  predictionsCombined$pred <- 1
+
   return(predictionsCombined)
 }
 
@@ -1690,10 +1677,7 @@ lagit <- function(a,k) {
     dataEng <- jaspResults[["predanResults"]][["featureEngState"]]$object
     dataEngFuture <- jaspResults[["predanResults"]][["featureEngStateFuture"]]$object
 
-
-    bmaRes <- jaspResults[["predanResults"]][["bmaResState"]]$object
-
-
+    #save maximum number of rows before training data for training data is reduced.
     nrRows <- nrow(dataEng)
     if(options$futurePredTrainingPeriod == "last") dataEng <- tail(dataEng,options$futurePredTrainingPoints)
 
@@ -1717,7 +1701,7 @@ lagit <- function(a,k) {
     }
 
     futureFrame <- head(futureFrame,options$futurePredictionPoints)
-
+    futureFrame$tt <- (nrRows+1):(nrRows+options$futurePredictionPoints)
 
 
     predList <- list()
@@ -1731,14 +1715,9 @@ lagit <- function(a,k) {
     }
     names(predList) <- paste0(sapply(modelList,'[', "model"),1:length(modelList))
 
-    predictionsCombined <- .adjustFuturePredictions(predList,dataEng,bmaRes,futureFrame = futureFrame,options)
 
-    predictionsCombined$model <- as.character(predictionsCombined$model)
-    predictionsCombined$model[predictionsCombined$model == "EBMA"] <- "BMA"
-
-    predictionsCombined$tt <- (nrRows+1):(nrRows+length(unique(predictionsCombined$time)))
-
-    futurePredState$object <- predictionsCombined
+    futurePredState$object <- list(predList = predList,
+                                   futureFrame = futureFrame)
 
 
     jaspResults[["predanResults"]][["futurePredState"]] <- futurePredState
@@ -1756,9 +1735,10 @@ lagit <- function(a,k) {
   if(is.null(jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["futurePredPlot"]])
      && options$"checkFuturePredictionPlot"){
 
-    futurePredPlot <- createJaspPlot(title = "Future prediction plot", height = 480, width = 720)
+    futurePredPlot <- createJaspPlot(title = "Future prediction plot", height = 480, width = 720,position = 2)
     futurePredPlot$dependOn(c(.modelDependencies(),
                               .boundDependencies(),
+                              "xAxisLimit",
                               "futurePredictionPoints",
                               "checkFuturePredictionPlot",
                               "futurePredSpreadPointsEqually",
@@ -1768,13 +1748,28 @@ lagit <- function(a,k) {
                               "futurePredictionDays",
                               "futurePredictionPoints",
                               "futurePredTrainingPeriod",
-                              "futurePredTrainingPoints"))
+                              "futurePredTrainingPoints",
+                              "futurePredThreshold",
+                              "futurePredReportingCheck"))
 
 
-    predictionsCombined <- jaspResults[["predanResults"]][["futurePredState"]]$object
+    predanResults <-jaspResults[["predanResults"]][["predanBounds"]][["object"]]
+    upperLimit <- predanResults[["upperLimit"]]
+    lowerLimit <- predanResults[["lowerLimit"]]
+    plotLimit <- predanResults[["plotLimit"]]
+
+
     dataEng <- jaspResults[["predanResults"]][["featureEngState"]]$object
+    futurePredState <- jaspResults[["predanResults"]][["futurePredState"]]$object
+    bmaRes <- jaspResults[["predanResults"]][["bmaResState"]]$object
 
-    dataOld <- cbind(dataEng[c('y', 'time')],upr= NA, lwr= NA,tt = NA,model = 'Actual')
+    predList <- futurePredState$predList
+    futureFrame <- futurePredState$futureFrame
+
+    predictionsCombined <- .adjustFuturePredictions(predList,bmaRes,futureFrame,upperLimit,lowerLimit,options)
+    #jaspResults[["predanResults"]][["futurePredState"]]$object$predictionsCombined <- predictionsCombined
+
+    dataOld <- cbind(dataEng[c('y', 'time')],upr= NA, lwr= NA,tt = NA,model = 'Actual',lwrProb = NA,uprProb = NA,pred = 0)
     dataOld$tt <- 1:nrow(dataEng)
 
 
@@ -1793,43 +1788,84 @@ lagit <- function(a,k) {
     if("BMA" %in% unique(predictionsCombined$model) & options$"selectedFuturePredictionModel" == "BMA")
       selectedModPlot <- "BMA"
 
+    jaspResults[["predanResults"]][["futurePredState"]]$object$predictionsCombined <- predictionsCombined
     predictionsCombined <- subset(predictionsCombined, model %in% c(selectedModPlot,"Actual"))
 
     t_var <- ifelse(options$futurePredSpreadPointsEqually,"tt","time")
 
 
-    predanResults <-jaspResults[["predanResults"]][["predanBounds"]][["object"]]
-    upperLimit <- predanResults[["upperLimit"]]
-    lowerLimit <- predanResults[["lowerLimit"]]
-    plotLimit <- predanResults[["plotLimit"]]
 
 
-    xBreaks <- jaspGraphs::getPrettyAxisBreaks(predictionsCombined[[t_var]])
+
+    xBreaks <- pretty(unique(predictionsCombined[[t_var]]))
     yBreaks <- jaspGraphs::getPrettyAxisBreaks(plotLimit)
 
 
 
 
 
-    p <- ggplot2::ggplot(predictionsCombined,ggplot2::aes_string(t_var,"mean",color = "model")) + ggplot2::geom_line() +
+    p <- ggplot2::ggplot(predictionsCombined,ggplot2::aes_string(t_var,"mean")) +
+      ggplot2::geom_line(color = "black") +
       jaspGraphs::themeJaspRaw() + jaspGraphs::geom_rangeframe() + ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid) +
       ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1),
                      panel.background = ggplot2::element_rect(fill = "white"),
                      legend.position = "bottom") +
-      ggplot2::scale_y_continuous(name = "Y",breaks = yBreaks,limits = range(yBreaks)) +
-      ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks)) +
-
-      jaspGraphs::scale_JASPcolor_discrete("viridis") +
+      ggplot2::scale_y_continuous(name = "Y",breaks = yBreaks#,limits = range(yBreaks)
+                                  ) +
       ggplot2::labs(color = "Type") +
       ggplot2::geom_hline(na.rm = T,yintercept = upperLimit,linetype="dashed",color="darkred") +
       ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred") +
-      ggplot2::geom_vline(xintercept = max(dataOld[[t_var]]),linetype="dashed") +
-      ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
-                                      plotLimit[[1]]))
+      ggplot2::geom_vline(xintercept = max(dataOld[[t_var]]),linetype="dashed")
+
+    if(options$xAxisLimit == "controlBounds")
+      p <- p + ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
+                                        plotLimit[[1]]))
+    else{
+      plotLimit <- rev(ggplot2::layer_scales(p)$y$get_limits())
+      p <- p + ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
+                                               plotLimit[[1]]))
+    }
+
+    p <- p + ggplot2::geom_ribbon(ggplot2::aes_string(ymin="lwr",ymax="upr"),alpha=0.5,color = NA, fill = "blue") +
+      ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks))
+
+    outOfBoundMin <- predictionsCombined[,t_var][min(which(predictionsCombined[predictionsCombined$pred == 1, c("uprProb","lwrProb")] > options$futurePredThreshold))]
+
+    if(!is.na(outOfBoundMin))
+      p <- p + ggplot2::geom_vline(xintercept = outOfBoundMin,linetype="dashed",color="darkred")
 
     futurePredPlot$plotObject <- p
 
+
+
+    if(options$futurePredReportingCheck){
+
+
+      # compute boundary breach
+      warningIndicator <- any(predictionsCombined[predictionsCombined$pred==1, c("uprProb","lwrProb")] > options$futurePredThreshold)
+
+
+      outBoundMax <- round(max(predictionsCombined[predictionsCombined$pred==1, c("uprProb","lwrProb")]),3)
+
+      warningText <- ifelse(warningIndicator,
+                            gettextf(paste("Warning! The process is predicted cross the out-of-control probability threshold for the first time at time point:",outOfBoundMin)),
+                            gettextf(paste("No warning. The process is not predicted to go out of control. The highest out-of-bound probability is:",outBoundMax)))
+
+
+      jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["futurePredReport"]] <- createJaspReport(
+        text =  warningText,
+        report = warningIndicator,
+        dependencies = c("futurePredThreshold","futurePredReportingCheck"),
+        position = 1)
+
+    }
+
     jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["futurePredPlot"]] <- futurePredPlot
+
+
+
+
+
 
   }
 
