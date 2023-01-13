@@ -394,17 +394,50 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     controlData <- controlData[start:end,]
   }
 
+  #jaspReport feature
+
+
+
+  percOutControl <- sum(controlData$outBoundNum)/sum(!is.na(controlData$y))
+
+  if(options$controlPlotReportingCheck){
+
+
+    # compute boundary breach
+    warningIndicator <- percOutControl > options$controlPlotReportingCheck
+
+
+    outBoundMax <- round(percOutControl,3)*100
+
+    warningText <- ifelse(warningIndicator,
+                          paste("Warning! The the out-of-bounds percent threshold has been crossed.",outBoundMax, "% of the data is out of bounds."),
+                          paste("No warning. Only",outBoundMax, "% of the data is out of control"))
+
+
+    predanDescriptivesContainer[["controlPlotReport"]] <- createJaspReport(
+      text =  warningText,
+      report = warningIndicator,
+      dependencies = c("controlPlotReportingCheck","controlPlotReportingPercent"),
+      position = 1)
+
+  }
+
+
+
+
+
+
+
 
   plotData <- controlData[1:4]
   plotData$include = 1
-
+  # add intersections between lines and the control boundaries
   plotData <- rbind(plotData,
                     .findCross(plotData$tt,plotData$y,plotData$time,upperLimit),
                     .findCross(plotData$tt,plotData$y,plotData$time,lowerLimit))
 
 
   plotData <- plotData[order(plotData$tt),]
-
   plotData$includeLine <- NA
   plotData$includeLine[1] <- plotData$outBound[1]
   for (i in 2:nrow(plotData)) {
