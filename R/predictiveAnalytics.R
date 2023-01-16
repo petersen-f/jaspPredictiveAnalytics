@@ -350,7 +350,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
   if(options$controlPlotCheck){
 
     title <- "Basic Control Plot"
-    predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720,dependencies = "controlPlotGrid")
+    predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720,dependencies = c("controlPlotGrid","controlPlotReportingCheck"))
 
     predanDescriptivesContainer[["predanControlPlot"]] <- predanControlPlot
 
@@ -404,8 +404,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
     # compute boundary breach
-    warningIndicator <- percOutControl > options$controlPlotReportingCheck
-
+    warningIndicator <- percOutControl > options$controlPlotReportingPercent
 
     outBoundMax <- round(percOutControl,3)*100
 
@@ -421,11 +420,6 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
       position = 1)
 
   }
-
-
-
-
-
 
 
 
