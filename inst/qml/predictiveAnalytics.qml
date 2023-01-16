@@ -10,11 +10,11 @@ Form
 	{
 
 		AvailableVariablesList	{ name: "allVariablesList" }
-		AssignedVariablesList	{ name: "dependent";		title: qsTr("Dependent Variable");	suggestedColumns: ["scale"];	singleVariable: true}
-		AssignedVariablesList	{ name: "time";				title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true}
-		AssignedVariablesList	{ name: "covariates";		title: qsTr("Covariates");			suggestedColumns: ["scale"];	allowedColumns: ["scale"]}
-		AssignedVariablesList 	{ name: "factors";		title: qsTr("Factors");		allowedColumns: ["ordinal", "nominal", "nominalText"]}
-		AssignedVariablesList	{ name: "trainingIndicator"; title: qsTr("Include in Training"); suggestedColumns: ["scale"]; singleVariable: true}
+		AssignedVariablesList	{ name: "dependent";			title: qsTr("Dependent Variable");	suggestedColumns: ["scale"];	singleVariable: true}
+		AssignedVariablesList	{ name: "time";					title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true}
+		AssignedVariablesList	{ name: "covariates";			title: qsTr("Covariates");			suggestedColumns: ["scale"];	allowedColumns: ["scale"]}
+		AssignedVariablesList 	{ name: "factors";				title: qsTr("Factors");				allowedColumns: ["ordinal", "nominal", "nominalText"]}
+		AssignedVariablesList	{ name: "trainingIndicator"; 	title: qsTr("Include in Training"); suggestedColumns: ["scale"]; singleVariable: true}
 	}
 
 
@@ -166,6 +166,13 @@ Form
 
 					}
 
+				}
+				CheckBox
+				{
+					name: "controlPlotReportingCheck"
+					label: "Reporting mode"
+					CIField{name: "controlPlotReportingPercent"; label: "Out-of-bound percent threshold";defaultValue:5}
+		
 				}
 			}
 		}
@@ -534,17 +541,32 @@ Form
 
 		}
 	}
-	CheckBox
+
+	Group 
 	{
-		name: "checkFuturePredictionPlot"
-		label: "Future prediction plot"
-		checked: false
+
+	
 		CheckBox
 		{
-			name: "futurePredSpreadPointsEqually"
-			label: qsTr("Spread points equally")
-			checked: true
+			name: "checkFuturePredictionPlot"
+			label: "Future prediction plot"
+			checked: false
+			CheckBox
+			{
+				name: "futurePredSpreadPointsEqually"
+				label: qsTr("Spread points equally")
+				checked: true
+			}
+			
 		}
+		CheckBox
+		{
+			name: "futurePredReportingCheck"
+			label: "Reporting mode"
+			CIField{name: "futurePredThreshold"; label: "Out-of-bound probability threshold"}
+		
+		}
+
 	}
 
 	}
