@@ -350,7 +350,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   if(options$controlPlotCheck){
 
-    title <- gettextf("Basic Control Plot")
+    title <- gettextf("Basic control plot")
     predanControlPlot <- createJaspPlot(title = title, height = 480, width = 720,dependencies = c("controlPlotGrid","controlPlotReportingCheck"))
 
     predanDescriptivesContainer[["predanControlPlot"]] <- predanControlPlot
@@ -1338,7 +1338,7 @@ lagit <- function(a,k) {
   if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
 
   if(is.null(jaspResults[["predanMainContainer"]][["cvContainer"]][["pitPlots"]]) &
-     length(options$"pitPlots") >1){
+     length(options$"pitPlots") >0){
 
     cvRes <- jaspResults[["predanResults"]][["cvResultsState"]]$object
 
@@ -1347,15 +1347,24 @@ lagit <- function(a,k) {
     pitValues <- stack(lapply(pitValuesList,c))
     colnames(pitValues) <- c("pit_value","model")
 
+
+    mods <- names(cvRes)
+    modsFull <- lapply(cvRes, "[[","modelName")
+    plotMods <- mods[which(modsFull %in% options$pitPlots)]
+
+
+    pitValues <- subset(pitValues,model %in% plotMods)
+
     nBins <- 10
     width <- 1 / nBins
-    plotQuantiles <- seq(width, 1, width)
+    plotQuantiles <- seq(0, 1, width)
 
     xBreaks <- pretty(plotQuantiles)
 
 
-    nCols <- ceiling(length(unique(pitValues$model))/2 )
-    pitPlots <- createJaspPlot(title = "Probability integral transform histograms",dependencies = c("pitPlots"),width = 2*360,height = 360 *nCols )
+    nRow <- ceiling(length(unique(pitValues$model))/2 )
+    nCol <- ifelse(length(unique(pitValues$model)) ==1,1,2)
+    pitPlots <- createJaspPlot(title = "PIT binned density plot",dependencies = c("pitPlots"),width = 360*nCol,height = 360 *nRow )
     p <- ggplot2::ggplot(
       data = pitValues,
       ggplot2::aes(x = pit_value)) +
@@ -1367,7 +1376,7 @@ lagit <- function(a,k) {
       ) +
       ggplot2::facet_wrap(
         facets = "model",
-        ncol = ifelse(length(unique(pitValues$model)) ==1,1,2)) +
+        ncol = nCol) +
       ggplot2::xlab("PIT") +
       ggplot2::ylab("Density") +
       ggplot2::scale_x_continuous(breaks = xBreaks)
