@@ -90,7 +90,7 @@ Form
 					CheckBox
 					{
 						name: "controlPeriodCheck"
-						label: qsTr("Custom Period")
+						label: qsTr("Custom period")
 						childrenOnSameRow: false
 						// fix that end period is from start to nrow of series
 						Group
@@ -154,7 +154,7 @@ Form
 				CheckBox
 				{
 					name: "controlPlotZoomCheck"
-					label: qsTr("Custom Plot Focus")
+					label: qsTr("Custom plot focus")
 					childrenOnSameRow: false
 					enabled: controlPlotCheckbox.checked
 					// fix that end period is from start to nrow of series
@@ -170,6 +170,8 @@ Form
 				CheckBox
 				{
 					name: "controlPlotReportingCheck"
+					enabled: preferencesModel.reportingMode
+					checked: false
 					label: "Reporting mode"
 					CIField{name: "controlPlotReportingPercent"; label: "Out-of-bound percent threshold";defaultValue:5}
 		
@@ -203,7 +205,7 @@ Form
 				CheckBox
 				{
 					name: "outlierTableFocusCheck"
-					label: qsTr("Custom Table Focus")
+					label: qsTr("Custom table focus")
 					childrenOnSameRow: false
 					enabled: "summaryStatsTableCheck".checked
 					// fix that end period is from start to nrow of series
@@ -369,6 +371,7 @@ Form
 		{
 
 			title: qsTr("Evaluation Metrics")
+			Layout.columnSpan: 2
 			CheckBox{ name: "metricCrps"; 		label: qsTr("Cont. ranked probability score"); checked: true}
 			CheckBox{ name: "metricDss"; 		label: qsTr("Dawid–Sebastiani score"); checked: true}
 			CheckBox{ name: "metricLog"; 		label: qsTr("Log score"); checked: true}
@@ -381,9 +384,35 @@ Form
 
 		}
 
+		Group
+		{
+			title: qsTr("PIT Plots")
+			VariablesForm
+
+			{
+
+				preferredHeight: jaspTheme.smallDefaultVariablesFormHeight
+				AvailableVariablesList
+				{
+
+					name: "fromRSource"
+					source: [ { rSource: "plottableModelsQml" } ]
+				}
+				AssignedVariablesList
+				{
+					//height: 200
+					name: "pitPlots"
+
+				}
+			}
+			//CheckBox{name: "modelsToPlotCredibleInterval"; label: qsTr("Show credible interval")}
+
+		}
+
 
 		
 	}
+
 
 
 	Section
@@ -563,6 +592,8 @@ Form
 		{
 			name: "futurePredReportingCheck"
 			label: "Reporting mode"
+			checked: false
+			enabled: preferencesModel.reportingMode
 			CIField{name: "futurePredThreshold"; label: "Out-of-bound probability threshold"}
 		
 		}

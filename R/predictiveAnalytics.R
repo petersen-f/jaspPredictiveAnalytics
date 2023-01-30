@@ -35,6 +35,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     .predanForecastVerificationPlanner(jaspResults,dataset,options,ready)
 
     .predanMetricTable(jaspResults,options,ready)
+    .predanPitPlots(jaspResults,options,ready)
     .predanForecastVerificationResultPlot(jaspResults,options,ready)
 
     .predanBMAHelperResults(jaspResults,dataset,options,ready)
@@ -349,8 +350,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
   if(options$controlPlotCheck){
 
-    title <- "Basic Control Plot"
-    predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720,dependencies = c("controlPlotGrid","controlPlotReportingCheck"))
+    title <- gettextf("Basic Control Plot")
+    predanControlPlot <- createJaspPlot(title = title, height = 480, width = 720,dependencies = c("controlPlotGrid","controlPlotReportingCheck"))
 
     predanDescriptivesContainer[["predanControlPlot"]] <- predanControlPlot
 
@@ -409,8 +410,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     outBoundMax <- round(percOutControl,3)*100
 
     warningText <- ifelse(warningIndicator,
-                          paste("Warning! The the out-of-bounds percent threshold has been crossed.",outBoundMax, "% of the data is out of bounds."),
-                          paste("No warning. Only",outBoundMax, "% of the data is out of control"))
+                          paste0("Warning! The the out-of-bounds percent threshold has been crossed. ",outBoundMax, "% of the data is out of bounds."),
+                          paste0("No warning. Only ",outBoundMax, "% of the data is out of control"))
 
 
     predanDescriptivesContainer[["controlPlotReport"]] <- createJaspReport(
@@ -450,7 +451,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 
 
-  predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720,dependencies = "controlPlotGrid")
+  #predanControlPlot <- createJaspPlot(title= title, height = 480, width = 720,dependencies = "controlPlotGrid")
   p <-ggplot2::ggplot(plotData[plotData$include==1,],ggplot2::aes(.data[[t_var]],y,group=1,colour=ggplot2::after_stat(y>upperLimit|y<lowerLimit))) +
     ggplot2::geom_hline(na.rm = T,yintercept = upperLimit,linetype="dashed",color="darkred") +
     ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred") +
@@ -934,7 +935,7 @@ lagit <- function(a,k) {
                                                      formula = modelList[[i]]$modelFormula,
                                                      data = dataEng,
                                                      cvPlan = jaspResults[["predanResults"]][["cvPlanState"]]$object,
-                                                     parallel = options$parallelComputation,preProList = T,keepModels = "summary",keepMetrics = "summary")
+                                                     parallel = options$parallelComputation,preProList = T,keepModels = "summary",keepMetrics = "fully")
 
 
 
@@ -1330,6 +1331,64 @@ lagit <- function(a,k) {
 
   return()
 }
+
+
+
+.predanPitPlots <- function(jaspResults,options,ready){
+  if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
+
+  if(is.null(jaspResults[["predanMainContainer"]][["cvContainer"]][["pitPlots"]]) &
+     length(options$"pitPlots") >1){
+
+    cvRes <- jaspResults[["predanResults"]][["cvResultsState"]]$object
+
+    pitValuesList <- lapply(cvRes, function(x) x$scoringArray[,"pit",])
+
+    pitValues <- stack(lapply(pitValuesList,c))
+    colnames(pitValues) <- c("pit_value","model")
+
+    nBins <- 10
+    width <- 1 / nBins
+    plotQuantiles <- seq(width, 1, width)
+
+    xBreaks <- pretty(plotQuantiles)
+
+
+    nCols <- ceiling(length(unique(pitValues$model))/2 )
+    pitPlots <- createJaspPlot(title = "Probability integral transform histograms",dependencies = c("pitPlots"),width = 2*360,height = 360 *nCols )
+    p <- ggplot2::ggplot(
+      data = pitValues,
+      ggplot2::aes(x = pit_value)) +
+      ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(width * density)),
+                              breaks = plotQuantiles,
+                              fill    = "grey",
+                              col     = "black",
+                              size    = .7
+      ) +
+      ggplot2::facet_wrap(
+        facets = "model",
+        ncol = ifelse(length(unique(pitValues$model)) ==1,1,2)) +
+      ggplot2::xlab("PIT") +
+      ggplot2::ylab("Density") +
+      ggplot2::scale_x_continuous(breaks = xBreaks)
+
+    p <- p + ggplot2::geom_hline(yintercept = 0.1,linetype = "dashed")
+
+
+    p <- jaspGraphs::themeJasp(p,
+                               axisTickWidth = .7,
+                               bty = list(type = "n", ldwX = .7, lwdY = 1)) +
+      ggplot2::theme(plot.margin = ggplot2::margin(2))
+
+
+    pitPlots$plotObject <- p
+    jaspResults[["predanMainContainer"]][["cvContainer"]][["pitPlots"]] <- pitPlots
+
+  }
+
+  return()
+}
+
 
 
 .predanForecastVerificationResultPlot <- function(jaspResults,options,ready){
@@ -1875,8 +1934,8 @@ lagit <- function(a,k) {
       outBoundMax <- round(max(predictionsCombined[predictionsCombined$pred==1, c("uprProb","lwrProb")]),3)
 
       warningText <- ifelse(warningIndicator,
-                            gettextf(paste("Warning! The process is predicted cross the out-of-control probability threshold for the first time at time point:",outOfBoundMin)),
-                            gettextf(paste("No warning. The process is not predicted to go out of control. The highest out-of-bound probability is:",outBoundMax)))
+                            gettextf(paste0("Warning! The process is predicted cross the out-of-control probability threshold for the first time at time point:",outOfBoundMin)),
+                            gettextf(paste0("No warning. The process is not predicted to cross the out-of-control probability threshold. The highest out-of-bound probability is:",outBoundMax,"%")))
 
 
       jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["futurePredReport"]] <- createJaspReport(
