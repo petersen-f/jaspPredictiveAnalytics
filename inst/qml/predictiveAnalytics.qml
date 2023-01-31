@@ -386,7 +386,7 @@ Form
 
 		Group
 		{
-			title: qsTr("PIT Plots")
+			title: qsTr("PIT Binned Density Plots")
 			VariablesForm
 
 			{
