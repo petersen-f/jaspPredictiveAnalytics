@@ -410,7 +410,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
     outBoundMax <- round(percOutControl,3)*100
 
     warningText <- ifelse(warningIndicator,
-                          paste0("Warning! The the out-of-bounds percent threshold has been crossed. ",outBoundMax, "% of the data is out of bounds."),
+                          paste0("Warning! The out-of-bounds percent threshold has been crossed. ",outBoundMax, "% of the data is out of bounds."),
                           paste0("No warning. Only ",outBoundMax, "% of the data is out of control"))
 
 
@@ -1385,7 +1385,6 @@ lagit <- function(a,k) {
 
 
     p <- jaspGraphs::themeJasp(p,
-                               axisTickWidth = .7,
                                bty = list(type = "n", ldwX = .7, lwdY = 1)) +
       ggplot2::theme(plot.margin = ggplot2::margin(2))
 
@@ -1943,8 +1942,8 @@ lagit <- function(a,k) {
       outBoundMax <- round(max(predictionsCombined[predictionsCombined$pred==1, c("uprProb","lwrProb")]),3)
 
       warningText <- ifelse(warningIndicator,
-                            gettextf(paste0("Warning! The process is predicted cross the out-of-control probability threshold for the first time at time point:",outOfBoundMin)),
-                            gettextf(paste0("No warning. The process is not predicted to cross the out-of-control probability threshold. The highest out-of-bound probability is:",outBoundMax,"%")))
+                            gettextf(paste0("Warning! The process is predicted to cross the out-of-control probability threshold for the first time at time point: ",outOfBoundMin)),
+                            gettextf(paste0("No warning. The process is not predicted to cross the out-of-control probability threshold. The highest out-of-bound probability is: ",outBoundMax,"%")))
 
 
       jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["futurePredReport"]] <- createJaspReport(
