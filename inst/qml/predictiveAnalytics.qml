@@ -1,7 +1,7 @@
-import QtQuick 2.11
-import QtQuick.Layouts 1.3
-import JASP.Controls 1.0
-import JASP.Widgets 1.0
+import QtQuick
+import QtQuick.Layouts 
+import JASP.Controls 
+import JASP.Widgets 
 
 Form
 {
@@ -10,11 +10,50 @@ Form
 	{
 
 		AvailableVariablesList	{ name: "allVariablesList" }
-		AssignedVariablesList	{ name: "dependent";			title: qsTr("Dependent Variable");	suggestedColumns: ["scale"];	singleVariable: true}
-		AssignedVariablesList	{ name: "time";					title: qsTr("Time");				suggestedColumns: ["nominal"];	singleVariable: true}
-		AssignedVariablesList	{ name: "covariates";			title: qsTr("Covariates");			suggestedColumns: ["scale"];	allowedColumns: ["scale"]}
-		AssignedVariablesList 	{ name: "factors";				title: qsTr("Factors");				allowedColumns: ["ordinal", "nominal", "nominalText"]}
-		AssignedVariablesList	{ name: "trainingIndicator"; 	title: qsTr("Include in Training"); suggestedColumns: ["scale"]; singleVariable: true}
+
+		AssignedVariablesList
+		{
+			name: "dependent"
+			title: qsTr("Dependent Variable")
+			suggestedColumns: ["scale"]
+			singleVariable: true
+			info: qsTr("Time series variable to be predicted. (needed)")
+		}
+
+		AssignedVariablesList
+		{
+			name: "time"
+			title: qsTr("Time")
+			suggestedColumns: ["nominal"]
+			singleVariable: true
+			info: qsTr("Time variable that each corresponds to the time stamp of each observation. Can be in the following formats: ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY-MM-DD HH:MM:SS', 'YYYY/MM/DD HH:MM:SS'] (needed)")
+		}
+
+		AssignedVariablesList	
+		{
+			name: "covariates"
+			title: qsTr("Covariates")
+			suggestedColumns: ["scale"]
+			allowedColumns: ["scale"]
+			info: qsTr("Covariates to be used in the prediction model. (optional)")
+		}
+
+		AssignedVariablesList
+		{
+			name: "factors"
+			title: qsTr("Factors")
+			allowedColumns: ["ordinal", "nominal", "nominalText"]
+			info: qsTr()
+		}
+		
+		AssignedVariablesList
+		{
+			name: "trainingIndicator"
+		 	title: qsTr("Include in Training")
+			suggestedColumns: ["scale"]
+			singleVariable: true
+			info : qsTr("Logical variable (only 0 or 1) indicating which cases should be used for training and verifying the models (= 1) and which cases should be predicted (= 0). This variable is necessary for making predictions when covariates and factors are supplied")
+		}
 	}
 
 
@@ -195,7 +234,7 @@ Form
 			CheckBox
 			{
 				name: "summaryStatsTableCheck"
-				label: "Summary statistics"
+				label: "Control summary table"
 			}
 			CheckBox
 			{
@@ -270,7 +309,7 @@ Form
 			CheckBox{name: "featEngRemoveZV"; label: qsTr("Remove zero-variance variables")}
 			CheckBox{
 				name: "featEngRemoveCor"
-				label: qsTr("Remove variables that are more stronger correlated than:")
+				label: qsTr("Remove variables that are stronger correlated than:")
 				childrenOnSameRow: true
 				DoubleField{ name: "featEngRemoveCorAbove"; defaultValue: 0.8}
 			}
@@ -288,8 +327,8 @@ Form
         {
 			title: qsTr("Evaluation Plan")
             //Layout.columnSpan: 1
+			IntegerField{name: "resampleInitialTraining"; label: qsTr("Training window"); defaultValue: resampleForecastHorizon.value*2}
             IntegerField{name: "resampleForecastHorizon"; id: "resampleForecastHorizon";  label: qsTr("Prediction window");defaultValue: 100}
-            IntegerField{name: "resampleInitialTraining"; label: qsTr("Training window"); defaultValue: resampleForecastHorizon.value*2}
 
 			RadioButtonGroup
 			{
@@ -299,7 +338,7 @@ Form
 				RadioButton{ value: "head"; label: qsTr("Start")}
 				RadioButton{ value: "tail"; label: qsTr("End"); checked: true}
 			}
-            IntegerField{name: "resampleMaxSlice"; id: "maxSlices"; label: qsTr("Maximum training slices");defaultValue:5}
+            IntegerField{name: "resampleMaxSlice"; id: "maxSlices"; label: qsTr("Maximum nr. of slices");defaultValue:5}
             CheckBox{name: "resampleCumulativeCheck"; label: qsTr("Cumulative training")}
 
 			CheckBox
@@ -372,21 +411,37 @@ Form
 
 			title: qsTr("Evaluation Metrics")
 			Layout.columnSpan: 2
-			CheckBox{ name: "metricCrps"; 		label: qsTr("Cont. ranked probability score"); checked: true}
-			CheckBox{ name: "metricDss"; 		label: qsTr("Dawid–Sebastiani score"); checked: true}
-			CheckBox{ name: "metricLog"; 		label: qsTr("Log score"); checked: true}
-			CheckBox{ name: "metricCoverage";	label: qsTr("Coverage"); checked: true}
-			CheckBox{ name: "metricBias"; 		label: qsTr("Bias"); checked: true}
-			CheckBox{ name: "metricPit";		label: qsTr("Probability integral transform"); checked: true}
+		}
+			Group
+			{
+				title: qsTr("Probabilistic")
+
+
+				CheckBox{ name: "metricCrps"; 		label: qsTr("Continuous ranked probability score"); checked: true}
+				CheckBox{ name: "metricDss"; 		label: qsTr("Dawid–Sebastiani score"); checked: true}
+				CheckBox{ name: "metricLog"; 		label: qsTr("Log score"); checked: true}
+				CheckBox{ name: "metricCoverage";	label: qsTr("Coverage"); checked: true}
+				CheckBox{ name: "metricBias"; 		label: qsTr("Bias"); checked: true}
+				CheckBox{ name: "metricPit";		label: qsTr("Probability integral transform"); checked: true}
+			}
+			
+			
+			
+
+		
+		Group
+		{
+			title: qsTr("Deterministic")
+
 			CheckBox{ name: "metricMae"; 		label: qsTr("Mean absolute error"); checked: true}
 			CheckBox{ name: "metricRmse"; 		label: qsTr("Root mean squared error"); checked: true}
 			CheckBox{ name: "metricR2"; 		label: qsTr("R²"); checked: true}
-
 		}
 
 		Group
 		{
 			title: qsTr("PIT Binned Density Plots")
+			Layout.columnSpan: 2
 			VariablesForm
 
 			{
@@ -447,7 +502,7 @@ Form
 
 	Section
 	{
-		title: qsTr("Bayesian Model Averaging")
+		title: qsTr("Ensemble Bayesian Model Averaging")
 		CheckBox
 		{
 			name: "checkPerformBma"
@@ -482,7 +537,7 @@ Form
 				name: "bmaWeightsTable"
 				enabled: doBMA.checked
 				label: qsTr("Model weights")
-				CheckBox{name: "bmaWeightsTablePerSlice"; label: qsTr("Show per test slice");checked: true}
+				CheckBox{name: "bmaWeightsTablePerSlice"; label: qsTr("Show per slice");checked: true}
 			}
 
 		}
@@ -555,7 +610,7 @@ Form
 
 			RadioButtonGroup
 			{
-				title: qsTr("Training period")
+				title: qsTr("Training window")
 				name: "futurePredTrainingPeriod"
 
 				RadioButton
