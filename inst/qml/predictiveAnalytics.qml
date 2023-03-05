@@ -234,7 +234,7 @@ Form
 			CheckBox
 			{
 				name: "summaryStatsTableCheck"
-				label: "Summary statistics"
+				label: "Control summary table"
 			}
 			CheckBox
 			{
@@ -502,7 +502,7 @@ Form
 
 	Section
 	{
-		title: qsTr("Bayesian Model Averaging")
+		title: qsTr("Ensemble Bayesian Model Averaging")
 		CheckBox
 		{
 			name: "checkPerformBma"

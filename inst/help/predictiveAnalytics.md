@@ -92,7 +92,7 @@ The probabilistic metrics are only available for models that are probabilistic a
 - Log score (LS): Display the LS.
 - Coverage: Display coverage.
 - Bias: Display bias.
-- Probaility integral transform (PIT): Display the PIT.
+- Probability integral transform (PIT): Display the PIT.
 
 ##### Probabilistic Metrics
 - Mean absolute error (MAE): Display the MAE.
@@ -105,7 +105,7 @@ The probabilistic metrics are only available for models that are probabilistic a
  - Models to plot: Select the models for which the out-of-sample predictions are shown that the evaluation metrics are calculated for.
 
 
-### Bayesian Model Averaging
+### Ensemble Bayesian Model Averaging
 Ensemble Bayesian model averaging (eBMA) performs model averaging across the out-of-sample predictions of several models. The weights of each model are estimated based on the predictive performance of each model and computed for each slice. The goal is to quantify the uncertainty of the model selection and improve predictive performance. The weights of the previous slice are used to adjust the predictions for the current slice - evaluation metrics are calculated for the adjusted predictions.
 
 - Perform BMA: Performs Bayesian model averaging
@@ -140,11 +140,78 @@ This section includes the functionality to predict the future of the time series
 ### Output
 ---- 
 
-<!---
-Continuous ranked probability score (CRPS): Compares the predicted cumulative density function (CDF) to the actual CDF. Generalisation of the mean absolute error (MAE) to a whole predictive density. The lower the CRPS, the better the model. 
+### Time Series Descripttives
+
+#### Basic Control Plot
+Displays time stamps (or time points) on x-axis and the time series variable on the y-axis. The control limits are displayed as dashed horizontal lines. The control limits are based on the settings for the control bounds. Data points that are outside the control bounds are displayed as red points/lines, whereas data points that are within the control bounds are displayed as blue points/lines.
+
+#### Basic Control Plot - Focused
+Same as basic control plot but only displays subset of data as indicated by user.
+
+#### Diagnostics
+
+##### Control Summary Table
+Displays summary statistics for the time series and divides it depending on whether data is within or outside the control bounds.
+- Control Area:
+  - All: All data points.
+  - Above: Data points that are above the upper control limit.
+  - Below: Data points that are below the lower control limit.
+  - Inside: Data points that are within the control bounds.
+- Mean: Mean of the data points.
+- SD: Standard deviation of the data points.
+- Minumum: Minimum value.
+- Maximum: Maximum value.
+- Valid: Number of valid data points that are not missing or invalid.
+- Percent: Percentage of valid data points that fall in each category.
+- Average Deviation: Average distance to the corresponding control limit.
+  
+*Warning Mode*
+#### Outlier Table
+Table displays time stamp (or time point) and value of data points that are outside the control bounds.
+- Time: Time stamp (or time point) of the data point.
+- Control Area: Whether the data point is above or below the control bounds.
+- Value: Value of the data point that is outside the control bounds.
+- Deviation: Distance to the corresponding control limit.
+
+#### Histogram
+Displays a histogram with the counts on the y-axis and the values on the x-axis. Data points that are outside the control bounds are displayed as red bars, whereas data points that are within the control bounds are displayed as blue bars.
+
+#### Autocorrelation Function Plot
+Displays the strength of the autocorrelation on the y-axis and the lags on the x-axis while the dashed line indicates the 95% confidence interval. The higher the autocorrelation, the more similar the data points are to the data points at a previous time point. The autocorrelation plot is used to determine whether the time series is stationary or not.
+
+#### Partial Autocorrelation Plot
+Same as the autocorrelation plot but only displays the autocorrelation that is not already explained by the autocorrelation of smaller lag.
+
+
+
+#### Forecast Evaluation
+
+#### Forecast Evaluation Plan
+Plot that displays the how the forecasting performance of the models will be evaluated. The x-axis displays the time points and the y-axis displays the number of data points that are used to train the model for the forecast evaluation. The blue line indicates the training window and the red line indicates the prediction window. The plot is split in different rows where each row represents a single training slice.
+
+#### Forecast Evaluation Metric Table
+All metrics are averaged across all slices based on the out-of-sample prediction. The metrics are:
+- Model: Name of the model.
+- Continuous ranked probability score (CRPS): Compares the predicted cumulative density function (CDF) to the actual CDF. Generalisation of the mean absolute error (MAE) to a whole predictive density. The lower the CRPS, the better the model. 
 - Dawid-Sebastiani score (DSS): Compares the predictive density to the actual CDF only through its mean and its variance. The lower the DSS, the better the model.
-- Log score (LS): 
+- Log score (LS): Compares the predictive density to the actual CDF by measuring the logarithmic difference between the two. The lower the LS, the better the model.
 - Coverage: Proportion of observations that are within the 95% prediction interval. The higher the coverage, the better the model.
 - Bias: Indicates whether predictions are systematically too high or too low. If the bias is -1 then all predictions are smaller than the actual value. If the bias is 1 then all predictions are larger than the actual value. The closer the bias is to 0, the more unbiased the model.
-- Probaility integral transform (PIT): 
--->
+- Probability Integral Transform (PIT): Evaluates the calibration of the model by treating the test observation as a random variable coming from the predictive distribution. If the PIT value is 0.5 then the model is perfectly calibrated. If the PIT value is 0 then the model is overconfident and if the PIT value is 1 then the model is underconfident. The closer the PIT value is to 0.5, the better the model.
+
+#### PIT Density Density Plot
+Plots the PIT values for each model averaged across all slices. The x-axis displays the PIT values and the y-axis displays the density. If the model is perfectly calibrated then the density should be uniform across the PIT values with a density of 0.1 for each bar.
+
+#### Prediction Plot
+Displays the actual observations and the predictions of the selected models. The x-axis displays the time points and the y-axis displays the values of the time series variable. The different models are displayed in different colors and the corresponding model names are displayed in the legend. 
+
+#### Ensemble Bayesian Model Averaging
+
+#### BMA - Model Weights
+Displays the model weights either averaged across all slices or for each slice seperately.
+- Model: Name of the model.
+- Weights: Corresponding toe the model weight assigned during eBMA. Higher weights indicates better predictive performance. Formally defined as the probability that the observations originated from each model.
+
+#### Future Prediction
+#### Future Prediction Plot
+Plots the predictions for the unobserved future. The black dashed line indicates the start of the prediction. The blue area indicates the 95% prediction interval. The x-axis displays the time points and the y-axis displays the values of the time series variable. If a red dashed line is present it indicates the time point where the control bounds are exceeded depending on the probability threshold. 

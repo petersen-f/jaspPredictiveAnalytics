@@ -32,7 +32,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
     .predanFeatureEngineeringHelper(jaspResults,dataset,options,ready)
-    .predanForecastVerificationPlanner(jaspResults,dataset,options,ready)
+    .predanForecastVerificationHelper(jaspResults,dataset,options,ready)
 
     .predanMetricTable(jaspResults,options,ready)
     .predanPitPlots(jaspResults,options,ready)
@@ -871,7 +871,7 @@ lagit <- function(a,k) {
 ######  CV Helper Function ######
 
 
-.predanForecastVerificationPlanner <- function(jaspResults,dataset,options,ready){
+.predanForecastVerificationHelper <- function(jaspResults,dataset,options,ready){
   if(!ready || is.null(jaspResults[["predanResults"]][["featureEngState"]])) return()
 
   dataControl <- jaspResults[["predanResults"]][["predanBounds"]]$object[[1]]
@@ -889,7 +889,7 @@ lagit <- function(a,k) {
   }
 
   if(is.null(jaspResults[["predanMainContainer"]][["cvContainer"]][["cvPlanPlot"]]) && options$resampleCheckShowTrainingPlan){
-    cvPlot <- createJaspPlot(width = 720,height = 180*min(c(
+    cvPlot <- createJaspPlot(title = "Forecast Evaluation Plan" ,width = 720,height = 180*min(c(
       length(jaspResults[["predanResults"]][["cvPlanState"]]$object), options$resamplePlanPlotMaxPlots)))
     cvPlot$dependOn(c(.modelDependencies(),
                       .forecastVeriDependencies(),
@@ -1279,7 +1279,7 @@ lagit <- function(a,k) {
 .predanMetricTable <- function(jaspResults,options,ready){
   if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
 
-  metricSummaryTable <- createJaspTable("Forecast Verification Metric Table")
+  metricSummaryTable <- createJaspTable("Forecast Evaluation Metric Table")
   metricSummaryTable$dependOn(c("checkPerformBma","bmaTestPeriod","bmaTestProp"))
   scoreSummary <- as.data.frame(t(sapply(jaspResults[["predanResults"]][["cvResultsState"]]$object, function(x) colMeans(x$scoringSummary))))
 
@@ -1925,7 +1925,7 @@ lagit <- function(a,k) {
 
     outOfBoundMin <- predictionsCombined[,t_var][min(which(predictionsCombined[predictionsCombined$pred == 1, c("uprProb","lwrProb")] > options$futurePredThreshold))]
 
-    if(!is.na(outOfBoundMin))
+    if(!is.na(outOfBoundMin) & options$futurePredReportingCheck)
       p <- p + ggplot2::geom_vline(xintercept = outOfBoundMin,linetype="dashed",color="darkred")
 
     futurePredPlot$plotObject <- p
@@ -1943,7 +1943,7 @@ lagit <- function(a,k) {
 
       warningText <- ifelse(warningIndicator,
                             gettextf(paste0("Warning! The process is predicted to cross the out-of-control probability threshold for the first time at time point: ",outOfBoundMin)),
-                            gettextf(paste0("No warning. The process is not predicted to cross the out-of-control probability threshold. The highest out-of-bound probability is: ",outBoundMax,"%")))
+                            gettextf(paste0("No warning. The process is not predicted to cross the out-of-control probability threshold. The highest out-of-bound probability is: ",outBoundMax,"percent.")))
 
 
       jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["futurePredReport"]] <- createJaspReport(
