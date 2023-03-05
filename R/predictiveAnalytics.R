@@ -1012,7 +1012,7 @@ lagit <- function(a,k) {
   yBreaks <- pretty(dataPlot$y)
 
 
-  p <- ggplot2::ggplot(dataPlot,ggplot2::aes_string(t_var,"y",color="type")) + ggplot2::geom_line() +
+  p <- ggplot2::ggplot(dataPlot,ggplot2::aes_string(t_var,"y",color="type",group = "1")) + ggplot2::geom_line() +
     ggplot2::scale_color_manual(name = "Time period",values=c("#4E84C4","#D16103")) +
     ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1)) +
     ggplot2::scale_y_continuous(name = "Y",breaks = yBreaks,limits = range(yBreaks)) +
@@ -1688,7 +1688,7 @@ lagit <- function(a,k) {
 
   predSummary <- lapply(X = predList,
                         function(x)
-                          data.frame(mean = rowMeans(x$pred$dist,na.rm = T),
+                          data.frame(median = apply(x$pred$dist,1,median,na.rm = T),
                                      lowerCI = apply(x$pred$dist,1,quantile,probs= 0.025,na.rm = T),
                                      higherCI= apply(x$pred$dist,1,quantile,probs= 0.975,na.rm = T),
                                      lowerLimitProb = apply(x$pred$dist, 1, quantInv,lowerLimit),
@@ -1863,7 +1863,7 @@ lagit <- function(a,k) {
     predictionsCombined <- .adjustFuturePredictions(predList,bmaRes,futureFrame,upperLimit,lowerLimit,options)
     #jaspResults[["predanResults"]][["futurePredState"]]$object$predictionsCombined <- predictionsCombined
 
-    dataOld <- cbind(dataEng[c('y', 'time')],upr= NA, lwr= NA,tt = NA,model = 'Actual',lwrProb = NA,uprProb = NA,pred = 0)
+    dataOld <- cbind(dataEng[c('y', 'time')],upr= NA, lwr= NA,tt = NA,model = 'Actual',lwrProb = 0,uprProb = 0,pred = 0)
     dataOld$tt <- 1:nrow(dataEng)
 
 
@@ -1923,7 +1923,8 @@ lagit <- function(a,k) {
     p <- p + ggplot2::geom_ribbon(ggplot2::aes_string(ymin="lwr",ymax="upr"),alpha=0.5,color = NA, fill = "blue") +
       ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks))
 
-    outOfBoundMin <- predictionsCombined[,t_var][min(which(predictionsCombined[predictionsCombined$pred == 1, c("uprProb","lwrProb")] > options$futurePredThreshold))]
+    outOfBoundMin <- predictionsCombined[[t_var]][min(which(predictionsCombined$lwrProb > options$futurePredThreshold |
+                                                              predictionsCombined$uprProb > options$futurePredThreshold))]
 
     if(!is.na(outOfBoundMin))
       p <- p + ggplot2::geom_vline(xintercept = outOfBoundMin,linetype="dashed",color="darkred")
