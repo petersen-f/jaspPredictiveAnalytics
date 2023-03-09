@@ -661,7 +661,7 @@ Form
 	{
 		title: qsTr("Advanced Options")
 
-		CheckBox{name: 'parallelComputation'; label: 'Parallel model computation';checked: true}
+		//CheckBox{name: 'parallelComputation'; label: 'Parallel model computation';checked: true}
 
 
 		IntegerField{name: "resampleSkip"; label: qsTr("Skip between training slices");defaultValue: resampleForecastHorizon.value}

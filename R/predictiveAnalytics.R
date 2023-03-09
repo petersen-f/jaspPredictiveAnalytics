@@ -935,7 +935,7 @@ lagit <- function(a,k) {
                                                      formula = modelList[[i]]$modelFormula,
                                                      data = dataEng,
                                                      cvPlan = jaspResults[["predanResults"]][["cvPlanState"]]$object,
-                                                     parallel = options$parallelComputation,preProList = T,keepModels = "summary",keepMetrics = "fully")
+                                                     preProList = T,keepModels = "summary",keepMetrics = "fully")
 
 
 
@@ -1161,7 +1161,6 @@ lagit <- function(a,k) {
                                         keepMetrics = c("fully", "summary","none"),
                                         metrics = c("crps","dss","log","coverage","bias", "pit","mae","rmse","rsq"),
                                         model_args=list(),
-                                        parallel = T,
                                         ...) {
 
 
@@ -1170,25 +1169,16 @@ lagit <- function(a,k) {
   cvResList <- list()
   cvModelObject <- list()
 
-  if(model == "xgboost" | !parallel){
-    future::plan(future::sequential)
-  } else{
-    ifelse(Sys.info()["sysname"] == "Windows",
-           future::plan(future::multisession,workers = 5),
-           future::plan(future::multisession,workers = 5))
-  }
-  cvModelObject <- future.apply::future_lapply(X = 1:length(cvPlan),function(i){
+  cvModelObject <- lapply(X = 1:length(cvPlan),function(i){
     system(sprintf('echo "\n%s\n"', paste0("fitting slice " , i, " of ",model)))
-
     .predAnModelFit(trainData = data[as.character(cvPlan[[i]]$analysis),],
-                   testData = data[as.character(cvPlan[[i]]$assessment),],
-                   predictFuture = T,
-                   method = model,
-                   formula = formula,
-                   model_args =model_args,...
-    )
+                    testData = data[as.character(cvPlan[[i]]$assessment),],
+                    predictFuture = T,
+                    method = model,
+                    formula = formula,
+                    model_args =model_args,...
+  )
   })
-  future::plan(future::sequential)
 
   l <- lapply(cvModelObject, function(x) x$pred$dist)
   # time,draw,slice array
@@ -1519,7 +1509,7 @@ lagit <- function(a,k) {
                        realArray,
                        methodBMA = c("EM","gibbs"),
                        testMethod = c("next","in"),
-                       inPercent = 0.3,retrain = T,parallel = T){
+                       inPercent = 0.3,retrain = T){
 
   testMethod <- match.arg(testMethod)
   if(testMethod == "in"){
@@ -1534,15 +1524,7 @@ lagit <- function(a,k) {
   #predBmaArray <-
   resList <- list()
 
-  if(!parallel){
-    future::plan(future::sequential)
-  } else{
-    ifelse(Sys.info()["sysname"] == "Windows",
-           future::plan(future::multisession,workers = 5),
-           future::plan(future::multicore,workers = 5))
-  }
-
-  resList <- future.apply::future_lapply(X = 1:dim(realArray)[2],FUN = function(i){
+  resList <- lapply(X = 1:dim(realArray)[2],FUN = function(i){
 
     iTest <- i + nSlice
     if(i != dim(realArray)[2] | testMethod == "in"){
@@ -1559,7 +1541,6 @@ lagit <- function(a,k) {
 
     bmaRes <- EBMAforecast::calibrateEnsemble(bmaData,model = "normal",method = methodBMA,tol	= 0.05,useModelParams =F)
   })
-  future::plan(future::sequential)
 
   dimsMetric <- ifelse(testMethod == "next", length(resList)-1,length(resList))
 
@@ -1609,8 +1590,7 @@ lagit <- function(a,k) {
     bmaRes <- .ebmaHelper(predSumArray = predSumArray,
                           realArray = realArray,
                           methodBMA = bmaMethod,
-                          testMethod = bmaTestMethod,inPercent = options$bmaTestProp,
-                          parallel = F)
+                          testMethod = bmaTestMethod,inPercent = options$bmaTestProp)
 
     bmaResState$object <- bmaRes
 
