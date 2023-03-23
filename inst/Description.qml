@@ -20,10 +20,10 @@ Description
 		qml: 'predictiveAnalytics.qml'
 	}
 
-	Analysis
-	{
-	    title: "Multivariate Binomial Control"
-	    func: "multiVarControl"
-		qml: 'multiVarControl.qml'
-	}
+	//Analysis
+	//{
+	//    title: "Multivariate Binomial Control"
+	//    func: "multiVarControl"
+	//	qml: 'multiVarControl.qml'
+	//}
 }
