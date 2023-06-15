@@ -20,7 +20,8 @@ Imports:
   lubridate,
   prophet,
   BART,
-  EBMAforecast
+  EBMAforecast,
+  imputeTS
 Suggests:
   testthat
 Remotes:

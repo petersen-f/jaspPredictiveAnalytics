@@ -811,7 +811,7 @@ lagit <- function(a,k) {
   if(!ready || !is.null(jaspResults[["predanResults"]][["featureEngState"]])) return()
 
   featureEngState <- createJaspState()
-  featureEngState$dependOn(c("featEngLags","featEngAutoTimeBased","covariates","factors","dependent"))
+  featureEngState$dependOn(c("featEngLags","featEngAutoTimeBased","featEngImputeTS","covariates","factors","dependent"))
   #featEngData <- data.frame(y =  dataset[,options[["dependent"]]], time = as.POSIXct( dataset[,options[["time"]]]))
 
   if (options$trainingIndicator != ""){
@@ -840,12 +840,19 @@ lagit <- function(a,k) {
 
   }
 
+
+  if(options$featEngImputeTS)
+    featEngData$y <- imputeTS::na_interpolation(featEngData$y)
+
   ##TODO: add
   if(options$featEngLags > 0)
     featEngData <- cbind(featEngData,as.data.frame(lagit(featEngData$y,k = 1:options$featEngLags)))
 
   if(options$featEngAutoTimeBased)
     featEngData <- cbind(featEngData,get_timeseries_signature_date(featEngData$time))
+
+
+
 
 
 

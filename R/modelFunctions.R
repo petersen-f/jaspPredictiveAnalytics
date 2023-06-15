@@ -204,7 +204,8 @@
 
 
   reg_vars <- colnames(trainData)[colnames(trainData)!="y" & colnames(trainData) %in% labels(terms(formula))]
-  model <- xgboost::xgboost(data = as.matrix(trainData[,reg_vars]),nrounds = nrounds,nthread=1,
+  options(datatable.verbose=TRUE)
+  model <- xgboost::xgboost(data = as.matrix(trainData[,reg_vars]),nrounds = nrounds,nthread=1,verbose=0,
                             label = trainData$y,  metrics = list("rmse"), objective = "reg:squarederror",...)
 
 

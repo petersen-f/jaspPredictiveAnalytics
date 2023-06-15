@@ -303,6 +303,14 @@ Form
 		//    IntegerField{name: "featEngAggWindow"; afterLabel: qsTr("minutes"); defaultValue: 2; min:2}
 		//}
 
+
+		CheckBox
+		{
+			name: "featEngImputeTS"
+			label: qsTr("Impute missing values")
+			
+		}
+
 		Group
 		{
 			Layout.columnSpan: 2
