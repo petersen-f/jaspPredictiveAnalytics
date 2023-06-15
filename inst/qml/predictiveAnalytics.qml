@@ -304,6 +304,14 @@ Form
 
 		}
 
+
+		CheckBox
+		{
+			name: "featEngImputeTS"
+			label: qsTr("Impute missing values")
+			
+		}
+
 		Group
 		{
 			Layout.columnSpan: 2
