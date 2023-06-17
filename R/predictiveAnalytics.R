@@ -1409,7 +1409,7 @@ lagit <- function(a,k) {
 
     mods <- names(cvRes)
     modsFull <- sapply(cvRes, "[","modelName")
-    plotMods <- mods[which(modsFull %in% options$"modelsToPlot")]
+    plotMods <- c(mods[which(modsFull %in% options$"modelsToPlot")],"Data")
     slices <- dimnames(cvRes[[1]]$realMatrix)[[2]]
 
     cvResPlot <- createJaspPlot(title = "Prediction Plots",width = 720,height = 180*length(slices))
@@ -1419,8 +1419,7 @@ lagit <- function(a,k) {
     modsFull <- sapply(cvRes, "[","modelName")
 
 
-    print(plotMods)
-    print(slices)
+
     ##TODO choice for equal or unequal t diff
     spread_equal <- T
 
@@ -1436,30 +1435,28 @@ lagit <- function(a,k) {
     dataPlot <- dplyr::bind_rows(.id = "slice",dataPlot)
     realData <- as.data.frame.table(realMatrix)
 
-    dataPlot$real <- NA
-    dataPlot$real[dataPlot$type == "Assessment"] <- realData$Freq
-    dataPlot$real[dataPlot$type == "Analysis"] <- dataEng$y[dataPlot$tt[dataPlot$type == "Analysis"]]
+    dataPlot$value <- NA
+    dataPlot$value[dataPlot$type == "Assessment"] <- realData$Freq
+    dataPlot$value[dataPlot$type == "Analysis"] <- dataEng$y[dataPlot$tt[dataPlot$type == "Analysis"]]
     dataPlot$time <- dataEng$time[dataPlot$tt]
 
 
     predSummArray <-  sapply(cvRes,FUN =  function(x) x$predSummary,simplify = "array",USE.NAMES = T)
+
     dimnames(predSummArray)[3] <- list(dimnames(realMatrix)[[2]])
 
 
-    pred <- cbind(as.data.frame.table(predSummArray[,1,,],responseName = "pred"),
-                    upr = as.data.frame.table(predSummArray[,2,,])$Freq,
-                    lwr = as.data.frame.table(predSummArray[,3,,])$Freq)
-
-    #if(length(mods)==1)
-    #  pred <- cbind(pred,model = mods)[]
+    pred <- cbind(as.data.frame.table(predSummArray[,1,,],responseName = "value"),
+                  upr = as.data.frame.table(predSummArray[,2,,])$Freq,
+                  lwr = as.data.frame.table(predSummArray[,3,,])$Freq)
 
 
-    colnames(pred)[1:3] <- c("tt","slice","model")
-    pred$tt <- dataPlot$tt[dataPlot$type == "Assessment"]
+    colnames(pred)[1:3] <- c("tt","slice","type")
+    pred$tt <- as.numeric(dataPlot$tt[dataPlot$type == "Assessment"])
+    pred$time <- dataPlot$time[dataPlot$type == "Assessment"]
 
-
-    dataPlot <- dplyr::left_join(dataPlot,pred)
     dataPlot$type <- "Data"
+    dataPlot <- dplyr::bind_rows(dataPlot,pred)
 
     #BMA
 
@@ -1477,26 +1474,28 @@ lagit <- function(a,k) {
 
     ttBma <- unlist(lapply(cvPlan,function(x) tail(x$assessment,nrow(bmaPred)/length(bmaSlices))))
 
-    bmaData <- subset(dataPlot,model == plotMods[1] & slice %in% bmaSlices &  tt %in% ttBma)
-    bmaData$pred <- bmaPred$Freq
+    bmaData <- subset(dataPlot,type == plotMods[1] & slice %in% bmaSlices &  tt %in% ttBma)
+    bmaData$value <- bmaPred$Freq
     bmaData$slice <-  rep(bmaSlices,each = nrow(bmaPred)/length(bmaSlices))
     bmaData[,c("upr","lwr")] <- NA
-    bmaData$model <- "BMA"
+    bmaData$type <- "BMA"
     #View(bmaData)
-    dataPlot <- rbind(dataPlot,bmaData)
+    dataPlot <- dplyr::bind_rows(dataPlot,bmaData)
     plotMods <- c(plotMods,"BMA")
 
     }
     #View(dataPlot)
-    dataPlot <- subset(dataPlot,slice %in% slices & (model %in% plotMods | is.na(model)))
+    dataPlot <- subset(dataPlot,slice %in% slices & (type %in% plotMods | is.na(type)))
     xBreaks <- pretty(dataPlot[[t_var]])
-    yBreaks <- pretty(dataPlot$real)
+    yBreaks <- pretty(dataPlot$value)
 
-    #dataPlot$type <- as.factor(dataPlot$type)
+    #reorder so Data is first factor
+    dataPlot$type <- factor(dataPlot$type,ordered = T,
+                            levels = c("Data",unique(dataPlot$type)[!grepl("Data",unique(dataPlot$type))]))
     #dataPlot$type <- relevel(dataPlot$type,"Data")
 
-    p <- ggplot2::ggplot(dataPlot,ggplot2::aes_string(t_var,"real",color = "type")) + ggplot2::geom_line() +
-      ggplot2::geom_line(ggplot2::aes(tt,pred,color=model)) + ggplot2::facet_wrap(facets  = "slice",ncol = 1) +
+    p <- ggplot2::ggplot(dataPlot,ggplot2::aes_string(t_var,"value",color = "type")) + ggplot2::geom_line() +
+      ggplot2::facet_wrap(facets  = "slice",ncol = 1) +
       ggplot2::coord_cartesian(ylim = range(yBreaks)) +
       ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1)) +
       ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid,
