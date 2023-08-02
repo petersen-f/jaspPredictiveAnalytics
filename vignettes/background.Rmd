@@ -1,0 +1,28 @@
+---
+title: "Background"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Background}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This articles gives background information on the functionality of the Predictive Analytics JASP module as well as references to further reading.
+
+## General Documentation
+
+[This](general_documentation.html) document provides the exact same information as the info button ![](images/info-button.png){width="1.1em"} in JASP for completeness and searchability.
+
+
+
+## Probalistic Prediction
+work in progress
+
+## Models
+work in progress
+
+## Ensemble Bayesian Model Averaging
+work in progress
+
+
+

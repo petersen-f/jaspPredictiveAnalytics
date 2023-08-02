@@ -2,10 +2,11 @@ Predictive Analytics
 ===
 This module allows the user to perform probalistic time series forecasting.
 
-### Assumptions
+## Assumptions
 - no missing covariates or factors
 
-### Input
+## Input
+
 ---
 
 #### Assignment Box
@@ -137,10 +138,12 @@ This section includes the functionality to predict the future of the time series
 ### Advanced Options
  - Parrallel model computation: Select whether the models are computed in parallel. This can speed up the computation time but can also produce errors under windows.
  - Skip between training slices: Selects the time points that the training window is moved forward after each training window. By default, it is set to the prediction window.
-### Output
+ 
+## Output
+
 ---- 
 
-### Time Series Descripttives
+### Time Series Descriptives
 
 #### Basic Control Plot
 Displays time stamps (or time points) on x-axis and the time series variable on the y-axis. The control limits are displayed as dashed horizontal lines. The control limits are based on the settings for the control bounds. Data points that are outside the control bounds are displayed as red points/lines, whereas data points that are within the control bounds are displayed as blue points/lines.
@@ -148,9 +151,9 @@ Displays time stamps (or time points) on x-axis and the time series variable on 
 #### Basic Control Plot - Focused
 Same as basic control plot but only displays subset of data as indicated by user.
 
-#### Diagnostics
+### Diagnostics
 
-##### Control Summary Table
+#### Control Summary Table
 Displays summary statistics for the time series and divides it depending on whether data is within or outside the control bounds.
 - Control Area:
   - All: All data points.
@@ -165,7 +168,7 @@ Displays summary statistics for the time series and divides it depending on whet
 - Percent: Percentage of valid data points that fall in each category.
 - Average Deviation: Average distance to the corresponding control limit.
   
-*Warning Mode*
+
 #### Outlier Table
 Table displays time stamp (or time point) and value of data points that are outside the control bounds.
 - Time: Time stamp (or time point) of the data point.
@@ -184,7 +187,7 @@ Same as the autocorrelation plot but only displays the autocorrelation that is n
 
 
 
-#### Forecast Evaluation
+### Forecast Evaluation
 
 #### Forecast Evaluation Plan
 Plot that displays the how the forecasting performance of the models will be evaluated. The x-axis displays the time points and the y-axis displays the number of data points that are used to train the model for the forecast evaluation. The blue line indicates the training window and the red line indicates the prediction window. The plot is split in different rows where each row represents a single training slice.
@@ -205,13 +208,13 @@ Plots the PIT values for each model averaged across all slices. The x-axis displ
 #### Prediction Plot
 Displays the actual observations and the predictions of the selected models. The x-axis displays the time points and the y-axis displays the values of the time series variable. The different models are displayed in different colors and the corresponding model names are displayed in the legend. 
 
-#### Ensemble Bayesian Model Averaging
+### Ensemble Bayesian Model Averaging
 
 #### BMA - Model Weights
 Displays the model weights either averaged across all slices or for each slice seperately.
 - Model: Name of the model.
 - Weights: Corresponding toe the model weight assigned during eBMA. Higher weights indicates better predictive performance. Formally defined as the probability that the observations originated from each model.
 
-#### Future Prediction
+### Future Prediction
 #### Future Prediction Plot
 Plots the predictions for the unobserved future. The black dashed line indicates the start of the prediction. The blue area indicates the 95% prediction interval. The x-axis displays the time points and the y-axis displays the values of the time series variable. If a red dashed line is present it indicates the time point where the control bounds are exceeded depending on the probability threshold. 

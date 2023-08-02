@@ -1,6 +1,6 @@
 Package: jaspPredictiveAnalytics
 Type: Package
-Title: A module for JASP
+Title: Probalistic time series forecasting with a focus on quality control predictions. 
 Version: 0.1.0
 Date: 2020-10-15
 Author: JASP Team

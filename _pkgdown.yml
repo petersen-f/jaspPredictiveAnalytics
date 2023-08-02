@@ -1,0 +1,30 @@
+
+template:
+  bootstrap: 5
+  bslib:
+    base_font: {google: {family: "Roboto", wght: 300}}
+    heading_font:  {google: {family: "Roboto Slab"}}
+    line-height-base: 1.55
+    #paragraph-margin-bottom: 3rem
+    h1-font-size: 30px
+    h2-font-size: 26px
+    h3-font-size: 18px
+
+navbar:
+  left:
+    home:
+      text: Get Started
+      href: articles/getting_started.html
+    tutorials:
+      text: Tutorials
+      href: articles/tutorials.html
+    background:
+      text: Background
+      href: articles/background.html
+    jasp:
+      text: "JASP"
+      href: https://jasp-stats.org/
+
+
+
+

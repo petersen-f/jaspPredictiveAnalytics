@@ -1,0 +1,8 @@
+---
+title: "Background"
+output: html_document
+---
+
+```{r child = '../inst/help/predictiveAnalytics.md'}
+# this article just fetches the help file located in the /inst/help/ folder and puts it here so it gets rendered by website documentation :)
+```

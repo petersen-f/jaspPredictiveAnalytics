@@ -5,7 +5,7 @@ Description
 {
 	name		: "jaspPredictiveAnalytics"
 	title		: qsTr("Predictive Analytics")
-	description	: qsTr("This module offers predictive analytics.")
+	description	: qsTr("This module offers probalistic predictive analytics.")
 	version		: "0.1"
 	author		: "JASP Team"
 	maintainer	: "JASP Team <info@jasp-stats.org>"
@@ -15,7 +15,7 @@ Description
 
 	Analysis
 	{
-	    title: "Predictive Analytics"
+	    title: "Univariate Predictive Analytics"
 	    func: "predictiveAnalytics"
 		qml: 'predictiveAnalytics.qml'
 	}

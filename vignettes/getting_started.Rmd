@@ -1,0 +1,38 @@
+---
+title: "Getting Started"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Getting Started}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+csl: "https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl"
+---
+
+This document provides a quick high-level overview of the functionality that the predictive analytics module offers. If you want to learn how to use the module click here for tutorials and view this page for a more in-depth explanation and background of the methods used. Currently, two analysis are available: The ***Univariate Predictive Analytics*** analysis provides univariate time series predictions to monitor whether a single process will go out of control by. The second ***Multivariate Binomial Control*** analysis on thr other hand models the out-of-control proportion of a single/multiple processes and predicts how this proportion will evolve in the future.
+
+### Process Control
+
+In process control we usually have a process that continuously generates data and we want to monitor it over time to make sure that it stays within the desired boundaries over time. For example, in a health care setting we might be interested in monitoring the absenteeism rate of employees in order to detect a potential outbreak of a diseases [@woodall2014]. In an industry context, we might have a continuous production process and are interested in monitoring the dimension of a produced product to ensure that it is reliable enough to be sold. (citation).
+
+The **Univariate Predictive Analytics** analysis offers several options to determine the control limits that determine whether a process is out-of-bound or not. The control limits can either be set manually or based on the data by selecting the number of standard deviations from the mean beyond which data is considered to be out of control. Alternatively, the control limits can be directly computed from (a subset) of the dataset that is being investigated. Additionally it includes a basic quality control chart, process control summary statistics and outlier tables.
+
+The ***Multivariate Binomial Control*** currently
+
+### Probabilistic Time Series Prediction
+
+When we are not only interested in monitoring whether a process is currently out of control and rather whether if it is going to be out of control in the future we can make use of time series prediction. This is especially valuable in a production process with multiple production steps: Detecting that the system produces faulty parts only at the end of the production cycle increases the loss as all parts in the current cycle might need to be discarded. Thus being able to predict whether a process is going to go out of control can significantly save cost and time as it enables as to act in time.
+
+Thus the **Univariate Predictive Analytics** analysis includes several time series prediction models that are trained on historical data to make predictions about the future. The available models range classical time series models (e.g. state space models, prophet) to more flexible machine learning models (Bayesian additive regression trees). Additionally, we put an emphasis on probabilistic forecasting method [@gneiting2014] as this allows us to quantify the uncertainty we have in our estimates - and not only predict if and when a process will go out of control but also with what probability.
+
+### Forecast Evaluation
+
+In order to make decisions based on our predictions we need to have confidence in its accuracy. One common way to evaluate the forecast accuracy is to repeatidly subset available historical data into a **training** and **test** data set. The training set is used to train the statistical model which then make predictions about the test set that are compared to the real observation. We can compute various forecasting metrics that quantify the accuracy of each model and help with determining the best model.
+
+Currently only the **Univariate Predictive Analytics** analysis offers forecasting evaluation. The accuracy is assessed by forecast metrics that are based on point predictions (such as R-squared or mean absolute error) as well as a probabilistic metrics that take the account the whole predictive distribution (e.g. Logarithmic score or the Continuous Ranked Probability Score).
+
+### Ensemble Bayesian Model Averaging
+
+Instead of relying on the single best model to predict the future, we can also combine the predictions of different models. First, this has the benefit that it takes into account the uncertainty we have in our model selection as simply selecting a single best model might produce overconfident results [@wagenmakers2022]. Additionally, the problem at hand might be too complex to be represented well by a single model - combining different models might provide a better predictuon if the if each model capture a unique aspect of the problem at hand [@sagi2018]. As a last point, it reduces the chances of selecting the wrong model by the user as they don't have to manually pick one.
+
+The **Univariate Predictive Analytics** analysis includes ensemble Bayesian model averaging as a method to combine the predictions of different models[@raftery2005]. Each model is weighted according to their historical predictive accuracy (see previous section) and then these predictions are combined to predict the future. Each model weight can be interpreted as the relative probability of it being the true model.
