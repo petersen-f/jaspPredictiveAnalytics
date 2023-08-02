@@ -46,7 +46,7 @@ vignettes/*.pdf
 .Renviron
 
 # pkgdown site
-docs/
+#docs/
 
 # translation temp files
 po/*~
@@ -63,5 +63,5 @@ LH_new_clean.csv
 .Rbuildignore
 fridtjof.csv
 tempresJASP.rds
-docs
 data
+docs/tutorial_data/
