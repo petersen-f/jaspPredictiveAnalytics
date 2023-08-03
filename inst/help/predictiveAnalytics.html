@@ -362,17 +362,15 @@ display: none;
 <h1>Predictive Analytics</h1>
 <p>This module allows the user to perform probalistic time series
 forecasting.</p>
-<div id="assumptions" class="section level3">
-<h3>Assumptions</h3>
+<div id="assumptions" class="section level2">
+<h2>Assumptions</h2>
 <ul>
 <li>no missing covariates or factors</li>
 </ul>
 </div>
-<div id="input" class="section level3">
-<h3>Input</h3>
-</div>
-<div id="hi" class="section level2">
-<h2>hi</h2>
+<div id="input" class="section level2">
+<h2>Input</h2>
+<hr />
 <div id="assignment-box" class="section level4">
 <h4>Assignment Box</h4>
 <ul>
@@ -625,7 +623,7 @@ algorithm to estimate the weights of each model. The default and faster.
 Sets more model weights to zero than Gibbs sampling.</li>
 <li>Gibbs: Performs Gibbs sampling to estimate the weights of each
 model. Slower but produces full posterior distribution for each model.
-Sets fewer model weights to zero than EM.</li>
+Sets fewer model weights to zero than EM. &lt;!—</li>
 </ul></li>
 <li>Evaluation Method: Determines how the predictive performance of the
 eBMA predictions are evaluated
@@ -642,7 +640,7 @@ evaluated.
 the performance of the eBMA method is tested on. For example if the
 value is 0.3 then the model weights are computed on the first 70% of the
 slice and then used to test the prediction for the remaining 30% of the
-slice.</li>
+slice. –&gt;</li>
 </ul></li>
 </ul></li>
 </ul></li>
@@ -703,11 +701,15 @@ in parallel. This can speed up the computation time but can also produce
 errors under windows.</li>
 <li>Skip between training slices: Selects the time points that the
 training window is moved forward after each training window. By default,
-it is set to the prediction window. ### Output —-</li>
+it is set to the prediction window.</li>
 </ul>
 </div>
-<div id="time-series-descripttives" class="section level3">
-<h3>Time Series Descripttives</h3>
+</div>
+<div id="output" class="section level2">
+<h2>Output</h2>
+<hr />
+<div id="time-series-descriptives" class="section level3">
+<h3>Time Series Descriptives</h3>
 <div id="basic-control-plot" class="section level4">
 <h4>Basic Control Plot</h4>
 <p>Displays time stamps (or time points) on x-axis and the time series
@@ -722,10 +724,11 @@ control bounds are displayed as blue points/lines.</p>
 <p>Same as basic control plot but only displays subset of data as
 indicated by user.</p>
 </div>
-<div id="diagnostics-1" class="section level4">
-<h4>Diagnostics</h4>
-<div id="control-summary-table" class="section level5">
-<h5>Control Summary Table</h5>
+</div>
+<div id="diagnostics-1" class="section level3">
+<h3>Diagnostics</h3>
+<div id="control-summary-table" class="section level4">
+<h4>Control Summary Table</h4>
 <p>Displays summary statistics for the time series and divides it
 depending on whether data is within or outside the control bounds. -
 Control Area: - All: All data points. - Above: Data points that are
@@ -737,13 +740,15 @@ Valid: Number of valid data points that are not missing or invalid. -
 Percent: Percentage of valid data points that fall in each category. -
 Average Deviation: Average distance to the corresponding control
 limit.</p>
-<p><em>Warning Mode</em> #### Outlier Table Table displays time stamp
-(or time point) and value of data points that are outside the control
-bounds. - Time: Time stamp (or time point) of the data point. - Control
-Area: Whether the data point is above or below the control bounds. -
-Value: Value of the data point that is outside the control bounds. -
-Deviation: Distance to the corresponding control limit.</p>
 </div>
+<div id="outlier-table" class="section level4">
+<h4>Outlier Table</h4>
+<p>Table displays time stamp (or time point) and value of data points
+that are outside the control bounds. - Time: Time stamp (or time point)
+of the data point. - Control Area: Whether the data point is above or
+below the control bounds. - Value: Value of the data point that is
+outside the control bounds. - Deviation: Distance to the corresponding
+control limit.</p>
 </div>
 <div id="histogram" class="section level4">
 <h4>Histogram</h4>
@@ -767,9 +772,9 @@ stationary or not.</p>
 autocorrelation that is not already explained by the autocorrelation of
 smaller lag.</p>
 </div>
-<div id="forecast-evaluation-1" class="section level4">
-<h4>Forecast Evaluation</h4>
 </div>
+<div id="forecast-evaluation-1" class="section level3">
+<h3>Forecast Evaluation</h3>
 <div id="forecast-evaluation-plan" class="section level4">
 <h4>Forecast Evaluation Plan</h4>
 <p>Plot that displays the how the forecasting performance of the models
@@ -820,9 +825,9 @@ values of the time series variable. The different models are displayed
 in different colors and the corresponding model names are displayed in
 the legend.</p>
 </div>
-<div id="ensemble-bayesian-model-averaging-1" class="section level4">
-<h4>Ensemble Bayesian Model Averaging</h4>
 </div>
+<div id="ensemble-bayesian-model-averaging-1" class="section level3">
+<h3>Ensemble Bayesian Model Averaging</h3>
 <div id="bma---model-weights" class="section level4">
 <h4>BMA - Model Weights</h4>
 <p>Displays the model weights either averaged across all slices or for
@@ -831,9 +836,9 @@ Corresponding toe the model weight assigned during eBMA. Higher weights
 indicates better predictive performance. Formally defined as the
 probability that the observations originated from each model.</p>
 </div>
-<div id="future-prediction-1" class="section level4">
-<h4>Future Prediction</h4>
 </div>
+<div id="future-prediction-1" class="section level3">
+<h3>Future Prediction</h3>
 <div id="future-prediction-plot" class="section level4">
 <h4>Future Prediction Plot</h4>
 <p>Plots the predictions for the unobserved future. The black dashed

@@ -13,3 +13,7 @@ Here you can find several tutorials that explain the functionality of the JASP P
 
 [Simulated data set](quality_control.html)
 &emsp; Shows main capabilities of module for a simulated manufacturing process that is influenced by temperature of machine, wear of a machine parts and some random error. 
+
+
+## Multivariate Binomial Control 
+WORK IN PROGRESS

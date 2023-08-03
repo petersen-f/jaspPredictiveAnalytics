@@ -54,7 +54,14 @@
         <input type="search" class="form-control me-sm-2" aria-label="Toggle navigation" name="search-input" data-search-index="../search.json" id="search-input" placeholder="Search for" autocomplete="off">
 </form>
 
-      <ul class="navbar-nav"></ul>
+      <ul class="navbar-nav">
+<li class="nav-item">
+  <a class="external-link nav-link" href="https://github.com/petersen-f/jaspPredictiveAnalytics" aria-label="Github">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
 </div>
 
     
@@ -76,51 +83,57 @@
     
     
 <p>This document provides a quick high-level overview of the
-functionality that the predictive analytics module offers. If you want
-to learn how to use the module click here for tutorials and view this
-page for a more in-depth explanation and background of the methods used.
-Currently, two analysis are available: The <strong><em>Univariate
-Predictive Analytics</em></strong> analysis provides univariate time
-series predictions to monitor whether a single process will go out of
-control by. The second <strong><em>Multivariate Binomial
-Control</em></strong> analysis on thr other hand models the
-out-of-control proportion of a single/multiple processes and predicts
-how this proportion will evolve in the future.</p>
+functionality that the <em>Predictive Analytics</em> module offers - and
+concepts that are important in connection to it. If you want to learn
+how to use the module click here for <a href="articles/tutorials.html">tutorials</a> and view <a href="articles/background.html">this</a> page for a more in-depth
+explanation and background of the methods used. Currently, two analysis
+are available: The <strong><em>Univariate Predictive
+Analytics</em></strong> analysis provides univariate time series
+predictions to monitor whether a single process will go out of control.
+On the other hand, the <strong><em>Multivariate Binomial
+Control</em></strong> analysis models the out-of-control
+<em>proportion</em> of a single/multiple processes and predicts how this
+proportion will evolve in the future. Thus it is more suitable to
+monitor multiple variables at the same time.</p>
 <div class="section level3">
 <h3 id="process-control">Process Control<a class="anchor" aria-label="anchor" href="#process-control"></a>
 </h3>
-<p>In process control we usually have a process that continuously
+<p>In process control, we usually have a process that continuously
 generates data and we want to monitor it over time to make sure that it
 stays within the desired boundaries over time. For example, in a health
 care setting we might be interested in monitoring the absenteeism rate
 of employees in order to detect a potential outbreak of a diseases <span class="citation">(Woodall &amp; Montgomery, 2014)</span>. In an industry
 context, we might have a continuous production process and are
 interested in monitoring the dimension of a produced product to ensure
-that it is reliable enough to be sold. (citation).</p>
+that it is reliable enough to be sold.</p>
 <p>The <strong>Univariate Predictive Analytics</strong> analysis offers
 several options to determine the control limits that determine whether a
 process is out-of-bound or not. The control limits can either be set
 manually or based on the data by selecting the number of standard
 deviations from the mean beyond which data is considered to be out of
 control. Alternatively, the control limits can be directly computed from
-(a subset) of the dataset that is being investigated. Additionally it
+(a subset) of the dataset that is being investigated. Additionally, it
 includes a basic quality control chart, process control summary
 statistics and outlier tables.</p>
-<p>The <strong><em>Multivariate Binomial Control</em></strong>
-currently</p>
+<p>The <strong><em>Multivariate Binomial Control</em></strong> currently
+allows to manually set the control bounds for several variables at the
+same time. It includes control charts for both the exact amount of
+out-of-control data points as well as the overall proportion over
+time.</p>
 </div>
 <div class="section level3">
 <h3 id="probabilistic-time-series-prediction">Probabilistic Time Series Prediction<a class="anchor" aria-label="anchor" href="#probabilistic-time-series-prediction"></a>
 </h3>
 <p>When we are not only interested in monitoring whether a process is
-currently out of control and rather whether if it is going to be out of
-control in the future we can make use of time series prediction. This is
-especially valuable in a production process with multiple production
-steps: Detecting that the system produces faulty parts only at the end
-of the production cycle increases the loss as all parts in the current
-cycle might need to be discarded. Thus being able to predict whether a
-process is going to go out of control can significantly save cost and
-time as it enables as to act in time.</p>
+<strong>currently</strong> out-of-control - bur rather whether if it is
+<strong>going to be</strong> out of control in the future. For this we
+can make use of time series prediction. This is especially valuable in a
+production process with multiple production steps: Detecting that the
+system produces faulty parts only at the end of the production cycle
+increases the loss as all parts in the current cycle might need to be
+discarded. Thus being able to predict whether a process is going to go
+out of control can significantly save cost and time as it enables as to
+act in advance.</p>
 <p>Thus the <strong>Univariate Predictive Analytics</strong> analysis
 includes several time series prediction models that are trained on
 historical data to make predictions about the future. The available
@@ -131,13 +144,17 @@ forecasting method <span class="citation">(Gneiting &amp; Katzfuss,
 2014)</span> as this allows us to quantify the uncertainty we have in
 our estimates - and not only predict if and when a process will go out
 of control but also with what probability.</p>
+<p>The <strong><em>Multivariate Binomial Control</em></strong> on the
+other hand allows us to predict how the overall proportion of
+out-of-control variables will evolve over time - and whether it reaches
+a certain threshold.</p>
 </div>
 <div class="section level3">
 <h3 id="forecast-evaluation">Forecast Evaluation<a class="anchor" aria-label="anchor" href="#forecast-evaluation"></a>
 </h3>
 <p>In order to make decisions based on our predictions we need to have
 confidence in its accuracy. One common way to evaluate the forecast
-accuracy is to repeatidly subset available historical data into a
+accuracy is to repeatedly subset available historical data into a
 <strong>training</strong> and <strong>test</strong> data set. The
 training set is used to train the statistical model which then make
 predictions about the test set that are compared to the real
@@ -171,6 +188,16 @@ predictions of different models<span class="citation">(Raftery et al.,
 predictive accuracy (see previous section) and then these predictions
 are combined to predict the future. Each model weight can be interpreted
 as the relative probability of it being the true model.</p>
+</div>
+<div class="section level3">
+<h3 id="reporting-mode">Reporting Mode<a class="anchor" aria-label="anchor" href="#reporting-mode"></a>
+</h3>
+<p>As a novelty, this module also adds the new <strong><em>Reporting
+Mode</em></strong> functionality that was recently added to JASP. That
+way operators and users can be informed when a process reaches a
+threshold or is predicted to do so in the future. Especially as JASP can
+now also connect to the most frequently used databases, it can integrate
+into live production processes and provide near real time feedback!</p>
 <div id="refs" class="references csl-bib-body hanging-indent" line-spacing="2">
 <div id="ref-gneiting2014" class="csl-entry">
 Gneiting, T., &amp; Katzfuss, M. (2014). Probabilistic Forecasting.

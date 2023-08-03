@@ -27,4 +27,10 @@ navbar:
     jasp:
       text: JASP
       href: https://jasp-stats.org/
+  right:
+    twitter:
+      icon: fa-github
+      href: https://github.com/petersen-f/jaspPredictiveAnalytics
+      aria-label: Github
+
 

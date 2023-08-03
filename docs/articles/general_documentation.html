@@ -54,7 +54,14 @@
         <input type="search" class="form-control me-sm-2" aria-label="Toggle navigation" name="search-input" data-search-index="../search.json" id="search-input" placeholder="Search for" autocomplete="off">
 </form>
 
-      <ul class="navbar-nav"></ul>
+      <ul class="navbar-nav">
+<li class="nav-item">
+  <a class="external-link nav-link" href="https://github.com/petersen-f/jaspPredictiveAnalytics" aria-label="Github">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
 </div>
 
     
@@ -371,28 +378,15 @@ model. Slower but produces full posterior distribution for each model.
 Sets fewer model weights to zero than EM.</li>
 </ul>
 </li>
-<li>Evaluation Method: Determines how the predictive performance of the
-eBMA predictions are evaluated
-<ul>
-<li>Next test slice: Here the model weights are computed on a whole
-slice and then used to adjust the predictions for the next slice for
-which the predictive performance is evaluated.</li>
-<li>Same test slice: Here the model weights are computed on the first
-portion of the slice and then used to adjust the predictions for the
-second portion of the slice for which the predictive performance is
-evaluated.
-<ul>
-<li>Last xx percent of data: Determines on which percentage of the slice
-the performance of the eBMA method is tested on. For example if the
-value is 0.3 then the model weights are computed on the first 70% of the
-slice and then used to test the prediction for the remaining 30% of the
-slice.</li>
 </ul>
 </li>
 </ul>
-</li>
-</ul>
-</li>
+<!---
+  - Evaluation Method: Determines how the predictive performance of the eBMA predictions are evaluated
+    - Next test slice: Here the model weights are computed on a whole slice and then used to adjust the predictions for the next slice for which the predictive performance is evaluated.
+    - Same test slice: Here the model weights are computed on the first portion of the slice and then used to adjust the predictions for the second portion of the slice for which the predictive performance is evaluated.
+      - Last xx percent of data: Determines on which percentage of the slice the performance of the eBMA method is tested on. For example if the value is 0.3 then the model weights are computed on the first 70% of the slice and then used to test the prediction for the remaining 30% of the slice.
+--><ul>
 <li>Tables:
 <ul>
 <li>Model weights: Shows the weights of each model for each slice. By

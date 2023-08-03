@@ -11,7 +11,7 @@ This articles gives background information on the functionality of the Predictiv
 
 ## General Documentation
 
-[This](general_documentation.html) document provides the exact same information as the info button ![](images/info-button.png){width="1.1em"} in JASP for completeness and searchability.
+[This](general_documentation.html) document provides the exact same information as the info button ![](images/info-button.png){width="1.1em"} in JASP for completeness and searchability for the Univariate Predictive Analytics analysis.
 
 
 

@@ -113,10 +113,13 @@ Ensemble Bayesian model averaging (eBMA) performs model averaging across the out
   - Method: Determines the algorithm used to calculate the weights of each model.
     - Expectation-Maximisation (EM): Uses the expectation-maximization algorithm to estimate the weights of each model. The default and faster. Sets more model weights to zero than Gibbs sampling.
     - Gibbs: Performs Gibbs sampling to estimate the weights of each model. Slower but produces full posterior distribution for each model. Sets fewer model weights to zero than EM.
+    
+<!---
   - Evaluation Method: Determines how the predictive performance of the eBMA predictions are evaluated
     - Next test slice: Here the model weights are computed on a whole slice and then used to adjust the predictions for the next slice for which the predictive performance is evaluated.
     - Same test slice: Here the model weights are computed on the first portion of the slice and then used to adjust the predictions for the second portion of the slice for which the predictive performance is evaluated.
       - Last xx percent of data: Determines on which percentage of the slice the performance of the eBMA method is tested on. For example if the value is 0.3 then the model weights are computed on the first 70% of the slice and then used to test the prediction for the remaining 30% of the slice.
+-->
 - Tables:
   - Model weights: Shows the weights of each model for each slice. By default they are averaged across all slices.
     - Show per slice: Instead of averaging the weights across all slices, show the weights for each slice.
