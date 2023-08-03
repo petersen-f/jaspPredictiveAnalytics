@@ -1559,7 +1559,7 @@ lagit <- function(a,k) {
 
   #predBmaArray <-
   resList <- list()
-
+  startProgressbar(dim(realArray)[2],'Running BMA')
   resList <- lapply(X = 1:dim(realArray)[2],FUN = function(i){
 
     iTest <- i + nSlice
