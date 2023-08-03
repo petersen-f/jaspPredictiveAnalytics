@@ -208,7 +208,7 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
            "manualBoundMean",
            "manualBoundErrorBound",
            "manualUpperBound",
-           "manualUpperLower",
+           "manualLowerBound",
            "sigmaBound",
            "controlPeriodCheck",
            "controlPeriodStart",
@@ -925,17 +925,12 @@ lagit <- function(a,k) {
     print(paste0("models:",sapply(modelList,"[","model")))
 
 
-
-
+    # TODO: specify which model is running
+    startProgressbar(
+      length(modelList),
+      gettextf("Running models")
+    )
     for (i in 1:length(modelList)) {
-
-
-      startProgressbar(
-        length(modelList),
-        gettextf(
-          paste0("Running model ", i, " / ",
-                 length(modelList)," :",options$selectedModels[[i]]))
-      )
 
 
       cvResults[[i]] <- .crossValidationHelperSlices(model = modelList[[i]]$model,
@@ -945,7 +940,7 @@ lagit <- function(a,k) {
                                                      preProList = T,keepModels = "summary",keepMetrics = "fully")
 
 
-
+      progressbarTick()
       cvResults[[i]]$modelName <- options$selectedModels[[i]]
     }
 
@@ -1277,8 +1272,13 @@ lagit <- function(a,k) {
   if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
 
   metricSummaryTable <- createJaspTable("Forecast Evaluation Metric Table")
-  metricSummaryTable$dependOn(c("checkPerformBma","bmaTestPeriod","bmaTestProp"))
+  metricSummaryTable$dependOn(c("checkPerformBma",
+                                "bmaTestPeriod",
+                                'fromR',
+                                "bmaTestProp"))
   scoreSummary <- as.data.frame(t(sapply(jaspResults[["predanResults"]][["cvResultsState"]]$object, function(x) colMeans(x$scoringSummary))))
+  bmaRes <- jaspResults[["predanResults"]][["bmaResState"]]$object
+
 
   metricSummaryTable$addColumnInfo(name= "model", title = "", type = "string")
   if(options$metricCrps)      metricSummaryTable$addColumnInfo(name = "crps"    , title = "CRPS"                    ,type = "number")
@@ -1303,23 +1303,26 @@ lagit <- function(a,k) {
   metricSummaryTable[["rmse"]]      <-  scoreSummary$"rmse"
   metricSummaryTable[["r2"]]        <-  scoreSummary$"rsq"
 
-  if(options$"checkPerformBma" && !is.null(jaspResults[["predanResults"]][["bmaResState"]])){
+  if(options$"checkPerformBma" && !is.null(bmaRes)){
 
     bmaRes <- jaspResults[["predanResults"]][["bmaResState"]]$object
 
     scoreSum <- rowMeans(bmaRes$scores,na.rm = T)
-    metricSummaryTable$addRows(list(
-      "model" = "BMA",
-      "crps"  = scoreSum["crps"],
-      "dss" = scoreSum["dss"],
-      "log" = scoreSum["log"],
-      "coverage"  =scoreSum["coverage"],
-      "bias"  =scoreSum["bias"],
-      "pit" = scoreSum["pit"],
-      "mae" =scoreSum["mae"],
-      "rmse"  =scoreSum["rmse"],
-      "r2"  =scoreSum["rsq"]
-    ))
+
+    scoreTableList <- list()
+    scoreTableList['model']   <- 'BMA'
+    if(options$metricCrps)      scoreTableList["crps"]    <- scoreSum["crps"]
+    if(options$metricDss)       scoreTableList["dss"]     <- scoreSum["dss"]
+    if(options$metricLog)       scoreTableList["log"]     <- scoreSum["log"]
+    if(options$metricCoverage)  scoreTableList["coverage"]<- scoreSum["coverage"]
+    if(options$metricBias)      scoreTableList["bias"]    <- scoreSum["bias"]
+    if(options$metricPit)       scoreTableList["pit"]     <- scoreSum["pit"]
+    if(options$metricMae)       scoreTableList["mae"]     <- scoreSum["mae"]
+    if(options$metricRmse)      scoreTableList["rmse"]    <- scoreSum["rmse"]
+    if(options$metricR2)        scoreTableList["r2"]      <- scoreSum["rsq"]
+
+
+    metricSummaryTable$addRows(scoreTableList)
 
   }
 
@@ -1407,13 +1410,21 @@ lagit <- function(a,k) {
     dataEng <- jaspResults[["predanResults"]][["featureEngState"]]$object
     cvPlan <- jaspResults[["predanResults"]][["cvPlanState"]]$object
 
+    predanResults <-jaspResults[["predanResults"]][["predanBounds"]][["object"]]
+    upperLimit <- predanResults[["upperLimit"]]
+    lowerLimit <- predanResults[["lowerLimit"]]
+    plotLimit <- predanResults[["plotLimit"]]
+
+    #maxSlices <- options$modelsToPlotSlices
+
+
     mods <- names(cvRes)
     modsFull <- sapply(cvRes, "[","modelName")
     plotMods <- c(mods[which(modsFull %in% options$"modelsToPlot")],"Data")
-    slices <- dimnames(cvRes[[1]]$realMatrix)[[2]]
+    slices <- head(dimnames(cvRes[[1]]$realMatrix)[[2]],options$modelsToPlotSlices)
 
     cvResPlot <- createJaspPlot(title = "Prediction Plots",width = 720,height = 180*length(slices))
-    cvResPlot$dependOn(c("modelsToPlot","checkPerformBma"))
+    cvResPlot$dependOn(c("modelsToPlot","checkPerformBma","modelsToPlotSlices"))
 
     mods <- names(cvRes)
     modsFull <- sapply(cvRes, "[","modelName")
@@ -1426,7 +1437,8 @@ lagit <- function(a,k) {
 
     t_var <- ifelse(spread_equal,"tt",time)
     sumPred <- lapply(cvRes,function(x) x$predSummary)
-    dataPlot <- lapply(cvPlan, function(x) data.frame( tt = c(x$analysis,x$assessment),
+    dataPlot <- lapply(cvPlan,
+                            function(x) data.frame( tt = c(x$analysis,x$assessment),
                                                        type = rep(c("Analysis","Assessment"),
                                                                   c(length(x$analysis),length(x$assessment)))))
 
@@ -1492,17 +1504,31 @@ lagit <- function(a,k) {
     #reorder so Data is first factor
     dataPlot$type <- factor(dataPlot$type,ordered = T,
                             levels = c("Data",unique(dataPlot$type)[!grepl("Data",unique(dataPlot$type))]))
-    #dataPlot$type <- relevel(dataPlot$type,"Data")
+
+    #order slices properly so plot shows correctl
+    slicesLevels <- unique(dataPlot$slice)
+    slicesLevels <- slicesLevels[order(nchar(slicesLevels))]
+    dataPlot$slice <- factor(dataPlot$slice,levels = slicesLevels)
+
+    #slicesInclude <- ifelse(options$resampleSliceStart == 'head',head(slicesLevels,maxSlices),tail(slicesLevels,maxSlices))
+    #dataPlot <- dataPlot[dataPlot$slice %in% slicesInclude,]
 
     p <- ggplot2::ggplot(dataPlot,ggplot2::aes_string(t_var,"value",color = "type")) + ggplot2::geom_line() +
+      ggplot2::labs(color = "Type") +
+      ggplot2::coord_cartesian(ylim=c(plotLimit[[2]],
+                                      plotLimit[[1]])) +
       ggplot2::facet_wrap(facets  = "slice",ncol = 1) +
-      ggplot2::coord_cartesian(ylim = range(yBreaks)) +
+      #ggplot2::coord_cartesian(ylim = range(yBreaks)) +
       ggplot2::theme(plot.margin = ggplot2::margin(t = 3, r = 12, b = 0, l = 1)) +
       ggplot2::theme(panel.grid = ggplot2::theme_bw()$panel.grid,
                      panel.background = ggplot2::element_rect(fill = "white"),
                      legend.position = "bottom",legend.title = ) +
       jaspGraphs::scale_JASPcolor_discrete("viridis") +
-      ggplot2::labs(color = "Type")
+      ggplot2::ylab('Value') + ggplot2::xlab('Time') +
+      ggplot2::geom_hline(na.rm = T,yintercept = upperLimit,linetype="dashed",color="darkred") +
+      ggplot2::geom_hline(yintercept = lowerLimit,linetype="dashed",color="darkred")
+
+
 
     cvResPlot$plotObject <- p
     jaspResults[["predanMainContainer"]][["cvContainer"]][["cvResPlot"]] <- cvResPlot
@@ -1529,7 +1555,7 @@ lagit <- function(a,k) {
 
   #predBmaArray <-
   resList <- list()
-
+  startProgressbar(dim(realArray)[2],'Running BMA')
   resList <- lapply(X = 1:dim(realArray)[2],FUN = function(i){
 
     iTest <- i + nSlice
@@ -1544,7 +1570,7 @@ lagit <- function(a,k) {
                                                 .outcomeCalibration  = realArray[nTrain,i,1],
                                                 .modelNames = dimnames(realArray)[[3]])
     }
-
+    progressbarTick()
     bmaRes <- EBMAforecast::calibrateEnsemble(bmaData,model = "normal",method = methodBMA,tol	= 0.05,useModelParams =F)
   })
 
@@ -1575,7 +1601,7 @@ lagit <- function(a,k) {
 
     bmaResState <- createJaspState()
     bmaResState$dependOn(c(.modelDependencies(),
-                         .bmaResultsDependencies()))
+                         .bmaResultsDependencies(),"modelsToPlot","checkPerformBma"))
 
     cvRes <- jaspResults[["predanResults"]][["cvResultsState"]]$object
 
@@ -1600,13 +1626,13 @@ lagit <- function(a,k) {
 
     bmaResState$object <- bmaRes
 
-    .predanMetricTable(jaspResults = jaspResults,options = options,ready = ready)
+    #.predanMetricTable(jaspResults = jaspResults,options = options,ready = ready)
 
     jaspResults[["predanResults"]][["bmaResState"]] <- bmaResState
     jaspResults[["plottableModelsQml"]] <- createJaspQmlSource(sourceID="plottableModelsQml", value= c(options$selectedModels,"BMA"))
 
-    if("BMA" %in% options$"modelsToPlot")
-      .predanForecastVerificationResultPlot(jaspResults,options,ready)
+    #if("BMA" %in% options$"modelsToPlot")
+    #  .predanForecastVerificationResultPlot(jaspResults,options,ready)
 
   }
   return()
@@ -1621,7 +1647,7 @@ lagit <- function(a,k) {
     bmaRes <- jaspResults[["predanResults"]][["bmaResState"]]$object
 
     bmaWeightsTable <- createJaspTable(title = "BMA - Model Weights")
-    bmaWeightsTable$dependOn(c("bmaWeightsTable","bmaWeightsTablePerSlice"))
+    bmaWeightsTable$dependOn(c("bmaWeightsTable","bmaWeightsTablePerSlice","modelsToPlot","checkPerformBma"))
     weightMatrix <- bmaRes$weightMatrix
     bmaWeightsTable$addColumnInfo(name="model",  title="Model", type="string")
     if(options$"bmaWeightsTablePerSlice") {
@@ -1656,7 +1682,7 @@ lagit <- function(a,k) {
 
 
 
-###### future predictions
+## future predictions
 
 
 #### helper functions
@@ -1686,8 +1712,9 @@ lagit <- function(a,k) {
 
 
   if(!is.null(bmaRes)){
-
-    bmaRes <- bmaRes$res[[length(bmaRes)]]
+    # select most recent bma result
+    #bmaRes <- bmaRes$res[[length(bmaRes)]]
+    bmaRes <- tail(bmaRes$res,1)
 
     #apply model weighst and optional bias adjustment to credible interval and mean prediction
     for(i in 1:5){
@@ -1738,7 +1765,7 @@ lagit <- function(a,k) {
 
 
 .predanFuturePredictionResults <- function(jaspResults,dataset,options,ready){
-  if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]]) || options$"futurePredictionPoints" == 0 ) return()
+  if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]]) || !(options$selectedFuturePredictionModel > 0) ) return()
 
   if(is.null(jaspResults[["predanResults"]][["futurePredState"]]) &&
              (options$"futurePredictionPoints" > 0 ||
@@ -1810,7 +1837,7 @@ lagit <- function(a,k) {
 }
 
 .predanFuturePredictionPlot <- function(jaspResults,dataset,options,ready){
-  if(!ready || is.null(jaspResults[["predanResults"]][["futurePredState"]])) return()
+  if(!ready || is.null(jaspResults[["predanResults"]][["futurePredState"]]) || !(options$selectedFuturePredictionModel > 0)) return()
 
   if(is.null(jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["futurePredPlot"]])
      && options$"checkFuturePredictionPlot"){
