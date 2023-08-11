@@ -33,7 +33,7 @@ end of the production cycle we would need to discard all the pieces from the pre
 cycle. We also have some measures from arbitrary sensors (could represent temperature,
 vibration or machine part age) measured at the start of the cycle that are somewhat
 related to the process. As we want to predict into the future we use the sensors
-measurement at the beginning of the cycle - in other words the sebsor measurements for
+measurement at the beginning of the cycle - in other words the sensor measurements for
 each piece are lagged by 100 data points.
 
 The values of the process are primarily influenced by the heat of the machinery which
@@ -56,10 +56,10 @@ continuous production process we want to monitor and predict. The **Time** varia
 **Factors** is optional since they are not necessary for the classical time series
 models - but are needed for more complex models. In our case we include them as our sensor
 measurements are associated with our dependent variable and could thus improve predictive
-accuracy. Additionally, we have a two variables called ***day_new_time_since*** and
+accuracy. Additionally, we have two variables called ***day_new_time_since*** and
 ***day_new_n_since*** that indicate how many pieces have been produced since and how much
 time has passed since the start of that day. They are useful because the time the machine
-has been on directly related to its temperature - which affects the size of our produced
+has been on directly relates to its temperature - which affects the size of our produced
 pieces. Lastly, the **Include in Training** variable indicates whether a time point should
 be used for training and verifying the model (set to 1) or whether it should be used to
 predict the future (set to 1). While the observations of the dependent variable are of
@@ -87,12 +87,14 @@ larger. However when the machine is turned on continuously, the temperature slow
 to a certain maximum temperature where the size of each piece is somewhat stable.
 
 As a second observation the process seems to go out-of-control at the end of the time
-series quite rapidly. The hypothetical explanation is that a part of the machine broke
-inside the machine and subsequently heats up the machine much more drastically which
-explains the process going out-of-control rather quickly. Since it is undesirable to let
-the process go-out-of control, we will test in this tutorial whether we can predict
-whether the process goes out-of-control! Afterwards we will illustrate how to predict the
-unseen future.
+series quite rapidly. The hypothetical explanation is that a part inside the machine and
+broke and subsequently heats it up drastically which decreases the size of our products.
+Since it is undesirable to let the process exceed the control bounds, we will test in this
+tutorial whether the module can accurately predict whether and at which time point the
+process goes out-of-control in the past! This is called forecast verification as we test
+whether our model predictions can properly predict events in the past to make sure we can
+trust our models. Afterwards we will illustrate how we can use the JASP module to predict
+the unseen future.
 
 But let us first adjust the control limits. In production processes we often know how
 large/small a produced object must be so be don't have to set the control bounds based on
@@ -127,13 +129,18 @@ before the test data. In our example we want to train the models on some amount 
 data and then use the next 100 data points as test data as this constitutes one production
 cycle. Afterwards we shift the training window ahead by a certain amount of data points,
 we retrain our models and then predict the next 100 data points. This is called *rolling
-window cross validation* or *historical historical forecast evaluation*.
+window cross validation* or *historical forecast evaluation*.
 
 The settings for this procedure can be found under the "Forecast Evaluation" section in
-zhe JASP module:
+the JASP module:
 
-![Figure 5: Creating evaluation
-plan](img/univar_tutorial_sim/forecast_eval_plan.JPG){style="float: right" width="246"}
+<div style = "float:right; text-align:left; width:246px; Padding: 10px">
+
+<img src ="img/univar_tutorial_sim/forecast_eval_plan.JPG" width = "246px">
+
+<p>Figure 5: Creating an evaluation plan</p>
+
+</div>
 
 The *Training window* option refers to how many past data points our model is trained on.
 Since we experience an underlying shift during the last day of the process and it goes out
@@ -144,6 +151,7 @@ models are ideally trained on all of the past - this can be achieved by checking
 option for *Cumulative Training.* If the process changes (quickly) over time - as
 indicated by worse predictive performance a shorter training window might be a better
 choice.
+
 
 The *Prediction window* option determines how many data points should be predicted into
 the future. This is ideally chosen in such a way that it corresponds to the prediction
@@ -222,9 +230,9 @@ For the current example we focus on the mean absolute error (MAE), the Continuou
 Probability Score (CRPS) and the R-squared value. As the name suggests the MAE is
 calculated by calculating how each observations differs from the forecast in absolute
 terms (i.e. removing the minus of negative numbers) and averaging it across all predicted
-observations. The CRPS on the other generalizes the MAE as it computes it for the whole
+observations. The CRPS on the other hand generalizes the MAE as it computes it for the whole
 predictive distribution instead of only a single forecast value for each observation. The
-R-squared value on the other hand computes how much variance is explained by the forecast.
+R-squared value tells us how much variance is explained by the forecast.
 The other forecast metrics are explained in detail
 [here](general_documentation.html#forecast-evaluation-metric-table). In general, all
 forecast evaluation metrics can be selected under the section **Forecast Evaluation -\>
@@ -329,7 +337,7 @@ slice if we want to know specifically what weights were used to adjust the predi
 ![](img/univar_tutorial_sim/perform_bma.JPG){width="450"}
 
 As a result we obtain a table with the model weights and an adjusted evaluation metric
-table that includes the eBMA model. Across all slices the prophet model receives slightly
+table that includes the eBMA model. Across all slices the prophet model receives
 a slightly higher model weight which indicates that it is more likely to be the best
 model. This is in line with the evaluation table where the prophet model outperformed the
 BART model only slightly as well in terms of MAE and CRPS.
@@ -371,12 +379,12 @@ could in principle predict whether the process goes out-of-control. At the same 
 fixed our production machine and replaced some parts to hopefully stop the machine from
 going out of control again. Let us also pretend the database connected to our module has
 been updated and new data has already arrived. The process has not gone out of control and
-the corresponding control plot not looks like this:
+the corresponding control plot looks like this:
 
 ![](img/univar_tutorial_sim/control_plot_future.png){width="600"}
 
 To predict the future, we need to open the section titled **Future Prediction**. The first
-option let's us select the model that we want to use to predict the future. Here we simply
+option lets us select the model that we want to use to predict the future. Here we simply
 use the ensemble Bayesian Model Averaging as it weights all selected models automatically
 for us - and as previously shown can provide a predictive benefit over a single model. The
 model weights are taken from the most recent training to adjust the future predictions.
@@ -385,7 +393,7 @@ The values for the prediction horizon (how far we want to predict into the futur
 well as the training window (how much of past data we want to use for training) are by
 default set to the same values that we selected for the model evaluation. Alternatively,
 we could also set custom values or train the models on all of the past models. The *Future
-prediction plot*checkbox is automatically enabled as soon as a model is chosen for
+prediction plot* checkbox is automatically enabled as soon as a model is chosen for
 prediction.
 
 ![](img/univar_tutorial_sim/predict_future.JPG){width="600"}
@@ -408,7 +416,7 @@ points.
 In this tutorial, we provided an overview of how to use the new ***Univariate Predictive
 Analytics*** module with a simulated data set. We showed that we can evaluate the
 predictive performance of a variety of statistical models (ranging from linear regression,
-classical time series models and machine learning algorithms) on based on both point-based
+classical time series models and machine learning algorithms) via both point-based
 and probabilistic prediction metrics. We also showed how we can use ensemble Bayesian
 Model Averaging to combine the predictions of different models to obtain better
 predictions compared to any single model. Finally, we showed how we can use these model

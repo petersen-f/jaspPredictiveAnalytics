@@ -112,7 +112,7 @@ have some measures from arbitrary sensors (could represent temperature,
 vibration or machine part age) measured at the start of the cycle that
 are somewhat related to the process. As we want to predict into the
 future we use the sensors measurement at the beginning of the cycle - in
-other words the sebsor measurements for each piece are lagged by 100
+other words the sensor measurements for each piece are lagged by 100
 data points.</p>
 <p>The values of the process are primarily influenced by the heat of the
 machinery which depends on whether the machine is turned on over night
@@ -139,12 +139,12 @@ supplied. Supplying <strong>Covariates</strong> and
 the classical time series models - but are needed for more complex
 models. In our case we include them as our sensor measurements are
 associated with our dependent variable and could thus improve predictive
-accuracy. Additionally, we have a two variables called
+accuracy. Additionally, we have two variables called
 <strong><em>day_new_time_since</em></strong> and
 <strong><em>day_new_n_since</em></strong> that indicate how many pieces
 have been produced since and how much time has passed since the start of
 that day. They are useful because the time the machine has been on
-directly related to its temperature - which affects the size of our
+directly relates to its temperature - which affects the size of our
 produced pieces. Lastly, the <strong>Include in Training</strong>
 variable indicates whether a time point should be used for training and
 verifying the model (set to 1) or whether it should be used to predict
@@ -177,12 +177,15 @@ continuously, the temperature slowly rises to a certain maximum
 temperature where the size of each piece is somewhat stable.</p>
 <p>As a second observation the process seems to go out-of-control at the
 end of the time series quite rapidly. The hypothetical explanation is
-that a part of the machine broke inside the machine and subsequently
-heats up the machine much more drastically which explains the process
-going out-of-control rather quickly. Since it is undesirable to let the
-process go-out-of control, we will test in this tutorial whether we can
-predict whether the process goes out-of-control! Afterwards we will
-illustrate how to predict the unseen future.</p>
+that a part inside the machine and broke and subsequently heats it up
+drastically which decreases the size of our products. Since it is
+undesirable to let the process exceed the control bounds, we will test
+in this tutorial whether the module can accurately predict whether and
+at which time point the process goes out-of-control in the past! This is
+called forecast verification as we test whether our model predictions
+can properly predict events in the past to make sure we can trust our
+models. Afterwards we will illustrate how we can use the JASP module to
+predict the unseen future.</p>
 <p>But let us first adjust the control limits. In production processes
 we often know how large/small a produced object must be so be don’t have
 to set the control bounds based on data and standard deviations. For our
@@ -226,12 +229,15 @@ of past data and then use the next 100 data points as test data as this
 constitutes one production cycle. Afterwards we shift the training
 window ahead by a certain amount of data points, we retrain our models
 and then predict the next 100 data points. This is called <em>rolling
-window cross validation</em> or <em>historical historical forecast
+window cross validation</em> or <em>historical forecast
 evaluation</em>.</p>
 <p>The settings for this procedure can be found under the “Forecast
-Evaluation” section in zhe JASP module:</p>
-<div class="float">
-<img src="img/univar_tutorial_sim/forecast_eval_plan.JPG" style="float: right" width="246" alt="Figure 5: Creating evaluation plan"><div class="figcaption">Figure 5: Creating evaluation plan</div>
+Evaluation” section in the JASP module:</p>
+<div style="float:right; text-align:left; width:246px; Padding: 10px">
+<p><img src="img/univar_tutorial_sim/forecast_eval_plan.JPG" width="246px"></p>
+<p>
+Figure 5: Creating an evaluation plan
+</p>
 </div>
 <p>The <em>Training window</em> option refers to how many past data
 points our model is trained on. Since we experience an underlying shift
@@ -336,11 +342,11 @@ the Continuous Ranked Probability Score (CRPS) and the R-squared value.
 As the name suggests the MAE is calculated by calculating how each
 observations differs from the forecast in absolute terms (i.e. removing
 the minus of negative numbers) and averaging it across all predicted
-observations. The CRPS on the other generalizes the MAE as it computes
-it for the whole predictive distribution instead of only a single
-forecast value for each observation. The R-squared value on the other
-hand computes how much variance is explained by the forecast. The other
-forecast metrics are explained in detail <a href="general_documentation.html#forecast-evaluation-metric-table">here</a>.
+observations. The CRPS on the other hand generalizes the MAE as it
+computes it for the whole predictive distribution instead of only a
+single forecast value for each observation. The R-squared value tells us
+how much variance is explained by the forecast. The other forecast
+metrics are explained in detail <a href="general_documentation.html#forecast-evaluation-metric-table">here</a>.
 In general, all forecast evaluation metrics can be selected under the
 section <strong>Forecast Evaluation -&gt; Evaluation
 Metrics</strong>:</p>
@@ -458,7 +464,7 @@ specifically what weights were used to adjust the prediction</p>
 <p><img src="img/univar_tutorial_sim/perform_bma.JPG" width="450"></p>
 <p>As a result we obtain a table with the model weights and an adjusted
 evaluation metric table that includes the eBMA model. Across all slices
-the prophet model receives slightly a slightly higher model weight which
+the prophet model receives a slightly higher model weight which
 indicates that it is more likely to be the best model. This is in line
 with the evaluation table where the prophet model outperformed the BART
 model only slightly as well in terms of MAE and CRPS.</p>
@@ -499,10 +505,10 @@ same time we fixed our production machine and replaced some parts to
 hopefully stop the machine from going out of control again. Let us also
 pretend the database connected to our module has been updated and new
 data has already arrived. The process has not gone out of control and
-the corresponding control plot not looks like this:</p>
+the corresponding control plot looks like this:</p>
 <p><img src="img/univar_tutorial_sim/control_plot_future.png" width="600"></p>
 <p>To predict the future, we need to open the section titled
-<strong>Future Prediction</strong>. The first option let’s us select the
+<strong>Future Prediction</strong>. The first option lets us select the
 model that we want to use to predict the future. Here we simply use the
 ensemble Bayesian Model Averaging as it weights all selected models
 automatically for us - and as previously shown can provide a predictive
@@ -513,8 +519,8 @@ into the future) - as well as the training window (how much of past data
 we want to use for training) are by default set to the same values that
 we selected for the model evaluation. Alternatively, we could also set
 custom values or train the models on all of the past models. The
-<em>Future prediction plot</em>checkbox is automatically enabled as soon
-as a model is chosen for prediction.</p>
+<em>Future prediction plot</em> checkbox is automatically enabled as
+soon as a model is chosen for prediction.</p>
 <p><img src="img/univar_tutorial_sim/predict_future.JPG" width="600"></p>
 <p>Now lastly we can look at the prediction plot that appears as soon as
 the computations have finished. The horizontal red dashed lines again
@@ -539,11 +545,11 @@ out-of-control within the next 100 data points.</p>
 simulated data set. We showed that we can evaluate the predictive
 performance of a variety of statistical models (ranging from linear
 regression, classical time series models and machine learning
-algorithms) on based on both point-based and probabilistic prediction
-metrics. We also showed how we can use ensemble Bayesian Model Averaging
-to combine the predictions of different models to obtain better
-predictions compared to any single model. Finally, we showed how we can
-use these model predictions to predict whether a process will go out of
+algorithms) via both point-based and probabilistic prediction metrics.
+We also showed how we can use ensemble Bayesian Model Averaging to
+combine the predictions of different models to obtain better predictions
+compared to any single model. Finally, we showed how we can use these
+model predictions to predict whether a process will go out of
 control.</p>
 <div class="section level3">
 <h3 id="additional-features">Additional Features<a class="anchor" aria-label="anchor" href="#additional-features"></a>
