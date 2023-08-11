@@ -308,8 +308,8 @@ manually between different models - which might benefit applied user of this mod
 one can potentially improve predictive accuracy compared to choosing any single model. One
 method to combine different model prediction - and which is implemented in this module -
 is called forecasts **ensemble Bayesian model averaging**. It is discussed briefly
-[here](articles/getting_started.html#ensemble-bayesian-model-averaging) and in more
-extensively [here](articles/background.html#ensemble-bayesian-model-averaging).
+[here](getting_started.html#ensemble-bayesian-model-averaging) and in more
+extensively [here](background.html#ensemble-bayesian-model-averaging).
 
 ### Ensemble Bayesian Model Averaging
 
