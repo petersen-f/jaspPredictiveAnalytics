@@ -296,12 +296,6 @@ Form
 
 		CheckBox{name: "featEngAutoTimeBased"; label: "Automatic time-based features"}
 
-		//CheckBox{
-		//    name: "featEngAggregateTime"
-		//    label: "Aggregate data every"
-		//    childrenOnSameRow: true
-		//    IntegerField{name: "featEngAggWindow"; afterLabel: qsTr("minutes"); defaultValue: 2; min:2}
-		//}
 
 
 		CheckBox
@@ -335,8 +329,17 @@ Form
         {
 			title: qsTr("Evaluation Plan")
             //Layout.columnSpan: 1
-			IntegerField{name: "resampleInitialTraining"; label: qsTr("Training window"); defaultValue: resampleForecastHorizon.value*2}
-            IntegerField{name: "resampleForecastHorizon"; id: "resampleForecastHorizon";  label: qsTr("Prediction window");defaultValue: 100}
+			IntegerField{
+				name: "resampleForecastHorizon"
+				id: "resampleForecastHorizon"
+				label: qsTr("Prediction window")
+				defaultValue: Math.floor((dataSetModel.rowCount() / 5)*0.6)
+			}
+			IntegerField{
+				name: "resampleInitialTraining"
+				label: qsTr("Training window")
+				defaultValue: Math.floor((dataSetModel.rowCount() / 5)*1.4)
+			}
             IntegerField{name: "resampleSkip"; label: qsTr("Skip between training slices");defaultValue: resampleForecastHorizon.value}
 
 			RadioButtonGroup
@@ -347,7 +350,7 @@ Form
 				RadioButton{ value: "head"; label: qsTr("Start")}
 				RadioButton{ value: "tail"; label: qsTr("End"); checked: true}
 			}
-            IntegerField{name: "resampleMaxSlice"; id: "maxSlices"; label: qsTr("Maximum nr. of slices");defaultValue:5}
+            IntegerField{name: "resampleMaxSlice"; id: "maxSlices"; label: qsTr("Maximum nr. of slices"); defaultValue:5; min: 1}
             CheckBox{name: "resampleCumulativeCheck"; label: qsTr("Cumulative training")}
 
 			CheckBox

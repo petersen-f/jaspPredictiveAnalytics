@@ -197,7 +197,9 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
            "time",
            "covariates",
            "factors",
-           "trainingIndicator"
+           "trainingIndicator",
+           "featEngLags",
+           "featEngAutoTimeBased"
            ))
 }
 
@@ -889,6 +891,7 @@ lagit <- function(a,k) {
                                                      initial = options$resampleInitialTraining,
                                                      assess = options$resampleForecastHorizon,
                                                      cumulative = options$resampleCumulativeCheck,
+                                                     lag = options$featEngLags,
                                                      skip = options$resampleSkip,
                                                      max_slice = options$resampleMaxSlice,
                                                      from = options$"resampleSliceStart")
@@ -1094,7 +1097,8 @@ lagit <- function(a,k) {
 #
   #}
 
-  if(!is.null(preProList)){
+  # only perform preprocessing if predictors present apart from ~ time
+  if(sum(!grepl("y|time",colnames(trainData))) > 0){
     preProSpec <- preProcess.default(trainData[,!grepl("y",colnames(trainData))],verbose = F,method = c("center", "scale","zv"))
 
     #identify factors with too
@@ -1747,19 +1751,6 @@ lagit <- function(a,k) {
   predictionsCombined$pred <- 1
 
   return(predictionsCombined)
-}
-
-.getTimeSinceEvent <- function(var,time,output=c("time","event")){
-  output <- match.arg(output)
-  events <- which(var == 1)
-  start <- events
-  end <- c(events[-1]-1,length(var))
-  seqs <- mapply(seq,start,end)
-  if(output == "time")
-    difs <- c(rep(0,start[1]-1),unlist(sapply(seqs, function(x) difftime(time[x],time[x[1]]))))
-  else
-    difs <- c(rep(0,start[1]-1),unlist(sapply(seqs, function(x) x - x[1])))
-  return(difs)
 }
 
 
