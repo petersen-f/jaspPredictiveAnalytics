@@ -13,17 +13,15 @@ Imports:
   jaspBase,
   jaspGraphs,
   bsts,
-  parallel,
   bssm,
   precrec,
-  future,
-  future.apply,
   reshape2,
   Boom,
   lubridate,
   prophet,
   BART,
-  EBMAforecast
+  EBMAforecast,
+  imputeTS
 Suggests:
   testthat
 Remotes:
