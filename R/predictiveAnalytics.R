@@ -1451,8 +1451,7 @@ lagit <- function(a,k) {
 .predanForecastVerificationResultPlot <- function(jaspResults,options,ready){
   if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]])) return()
 
-  if(#is.null(jaspResults[["predanMainContainer"]][["cvContainer"]][["cvResPlot"]]) &&
-     length(options$"modelsToPlot") >1){
+  if(length(options$"modelsToPlot") >0){
 
 
     cvRes <- jaspResults[["predanResults"]][["cvResultsState"]]$object
@@ -1475,8 +1474,7 @@ lagit <- function(a,k) {
     cvResPlot <- createJaspPlot(title = "Prediction Plots",width = 720,height = 180*length(slices))
     cvResPlot$dependOn(c("modelsToPlot","checkPerformBma","modelsToPlotSlices"))
 
-    mods <- names(cvRes)
-    modsFull <- sapply(cvRes, "[","modelName")
+
 
 
 
@@ -1510,6 +1508,12 @@ lagit <- function(a,k) {
     pred <- cbind(as.data.frame.table(predSummArray[,1,,],responseName = "value"),
                   upr = as.data.frame.table(predSummArray[,2,,])$Freq,
                   lwr = as.data.frame.table(predSummArray[,3,,])$Freq)
+    
+    #add model name column in case we only have one model because otherwise it is not present in df
+    if(length(options$"modelsToPlot") == 1){
+      pred$Var3 <- dimnames(predSummArray)[[4]]
+      pred <- pred[,c('Var1','Var2',"Var3","value","upr","lwr")]
+    }
 
 
     colnames(pred)[1:3] <- c("tt","slice","type")
@@ -1776,7 +1780,6 @@ lagit <- function(a,k) {
                                      upperLimitPrib = 1 - apply(x$pred$dist, 1, quantInv,upperLimit)
 
                           ))
-  names(predSummary)
   predListAdjusted <- list()
 
 
@@ -1788,8 +1791,8 @@ lagit <- function(a,k) {
     #apply model weighst and optional bias adjustment to credible interval and mean prediction
     for(i in 1:5){
       d <- as.matrix(as.data.frame(sapply(predSummary,'[',i,simplify = "matrix")))
-      colnames(d) <- bmaRes@modelNames
-      predListAdjusted[[i]] <- EBMAforecast::EBMApredict(EBMAmodel = bmaRes,Predictions = d)@predTest[,,1]
+      colnames(d) <- bmaRes[[1]]@modelNames
+      predListAdjusted[[i]] <- EBMAforecast::EBMApredict(EBMAmodel = bmaRes[[1]],Predictions = d)@predTest[,,1]
 
     }
 
