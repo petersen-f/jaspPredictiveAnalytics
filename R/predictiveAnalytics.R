@@ -21,6 +21,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
     ready <- options$dependent != "" & options$time != ""
 
     dataset <- .predanReadData(options,ready)
+    errors  <- .predanErrorHandling(dataset, options, ready)
 
     .predanContainerSetup(jaspResults, ready)
     .predanComputeResults(jaspResults, dataset, options, ready)
@@ -71,6 +72,34 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
   return(dataset)
 
+}
+
+.predanErrorHandling <- function(dataset, options, ready){
+  if(!ready) return()
+
+  checks <- list(
+    .dateTimeArgsChecks <- function(){
+      timeVar <- try(as.POSIXct(dataset[[encodeColNames(options$time)]], tz = "UTC"))
+
+      if (isTryError(timeVar))
+        return(gettext("'Time' must be in a date-like format (e.g., yyyy-mm-dd hh:mm:ss or yyyy-mm-dd)"))
+
+    },
+    .predictionArgsChecks <- function(){
+      if(length(options$covariates) + length(options$factors) > 0 && options$trainingIndicator == "")
+        return(gettext(paste("When 'Covariates' or 'Factors' are provided, they also need to be supplied for the future prediction period.",
+        "Please provide the 'Include in Training' variable where a value of '1' indicates that this period is used for training/verification - and a value of '0' that it is used for prediction.",
+        "The values for the dependent variable are allowed to be missing for the prediction period.",
+        "Alternatively, you could remove the covariates and select the specific time period you want to predict under 'Future Prediction' -> 'Periodical'.",
+        "That way the data is automatically extended into the future based on your settings.")))
+
+    }
+  )
+  .hasErrors(dataset = dataset,
+    type = 'missingValues',
+    missingValues.target = c(options$covariates,options$factors),
+    custom = checks,
+    exitAnalysisIfErrors = TRUE)
 }
 
 .predanContainerSetup <- function(jaspResults, options) {
@@ -252,6 +281,20 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 }
 
 
+.futurePredictDependencies <- function(){
+  return(c(
+    "selectedModels",
+    "futurePredPredictionHorizon",
+    "futurePredictionDays",
+    "futurePredictionPoints",
+    "futurePredTrainingPeriod",
+    "futurePredTrainingPoints",
+    "futurePredPredictionType",
+    "periodicalPredictionNumber",
+    "periodicalPredictionUnit"))
+}
+
+
 
 
 
@@ -280,7 +323,8 @@ quantInvVec <- function(distrMatrix,value) apply(distrMatrix, 1, quantInv,value)
 
 .predanComputeBounds <- function(dataset,options) {
 
-  dataControl <- data.frame(y =  dataset[,options[["dependent"]]], time = as.POSIXct( dataset[,options[["time"]]]))
+  dataControl <- data.frame(y    =  dataset[[encodeColNames(options$dependent)]],
+                            time =  as.POSIXct(dataset[[encodeColNames(options$time)]], tz = "UTC"))
   dataControl$tt <- 1:nrow(dataControl)
 
   if (options$trainingIndicator != "")
@@ -825,14 +869,15 @@ lagit <- function(a,k) {
 
 
 
-  featEngData <- dataset[,c(options[["dependent"]],jaspBase::encodeColNames(options$time))]
+  featEngData <- data.frame(y    =  dataset[[encodeColNames(options$dependent)]],
+                            time =  as.POSIXct(dataset[[encodeColNames(options$time)]], tz = "UTC"))
   if(length(options$covariates)>0)
     featEngData <- cbind(featEngData,dataset[,jaspBase::encodeColNames(options$covariates),drop=F])
-  colnames(featEngData)[1:2] <- c("y","time")
+  #colnames(featEngData)[1:2] <- c("y","time")
 
-  featEngData$time <- as.POSIXct(featEngData$time)
+  #featEngData$time <- as.POSIXct(featEngData$time)
   print(colnames(featEngData))
-    #convert factors to dummy vars via model.matrix
+
 
   if(length(options$factors) > 0){
 
@@ -1690,9 +1735,29 @@ lagit <- function(a,k) {
 
 
 #### helper functions
-.makeEmptyFutureFrame <- function(dataEngFuture,dataEng,options){
+.makeEmptyFutureFrame <- function(jaspResults,dataEngFuture,dataEng,options){
+  futureFrame <- NULL
 
-  futureFrame <- dataEngFuture
+  if(options$futurePredPredictionType == "trainingIndicator"){
+    futureFrame <- dataEngFuture
+  } else if (options$futurePredPredictionType == "timepoints"){
+    futureFrame <- dataEngFuture
+    futureFrame <- head(futureFrame,options$futurePredictionPoints)
+
+  } else if (options$futurePredPredictionType == "periodicalPrediction"){
+
+    # adapted from prophet::make_future_dataframe(
+    dates <- seq(max(dataEng$time), length.out = options$periodicalPredictionNumber + 1, by = options$periodicalPredictionUnit)
+    dates <- dates[2:(options$periodicalPredictionNumber + 1)]
+    futureFrame <- data.frame(y = NA, time = dates)
+
+    if(options$featEngLags > 0)
+      futureFrame <- cbind(futureFrame,as.data.frame(lagit(futureFrame$y,k = 1:options$featEngLags)))
+
+    if(options$featEngAutoTimeBased)
+      futureFrame <- cbind(futureFrame,get_timeseries_signature_date(futureFrame$time))
+  }
+
 
   return(futureFrame)
 }
@@ -1758,19 +1823,12 @@ lagit <- function(a,k) {
 .predanFuturePredictionResults <- function(jaspResults,dataset,options,ready){
   if(!ready || is.null(jaspResults[["predanResults"]][["cvResultsState"]]) || !(options$selectedFuturePredictionModel > 0) ) return()
 
-  if(is.null(jaspResults[["predanResults"]][["futurePredState"]]) &&
-             (options$"futurePredictionPoints" > 0 ||
-              !is.null(jaspResults[["predanResults"]][["featureEngStateFuture"]]))){
+  if(is.null(jaspResults[["predanResults"]][["futurePredState"]]) && options$futurePredPredictionType != "noFuturePrediction"){
 
 
     futurePredState <- createJaspState()
     futurePredState$dependOn(c(.modelDependencies(),
-                               "selectedModels",
-                               "futurePredPredictionHorizon",
-                               "futurePredictionDays",
-                               "futurePredictionPoints",
-                               "futurePredTrainingPeriod",
-                               "futurePredTrainingPoints"))
+                               .futurePredictDependencies()))
 
     dataEng <- jaspResults[["predanResults"]][["featureEngState"]]$object
     dataEngFuture <- jaspResults[["predanResults"]][["featureEngStateFuture"]]$object
@@ -1779,7 +1837,7 @@ lagit <- function(a,k) {
     nrRows <- nrow(dataEng)
     if(options$futurePredTrainingPeriod == "last") dataEng <- tail(dataEng,options$futurePredTrainingPoints)
 
-    futureFrame <- .makeEmptyFutureFrame(dataEngFuture,dataEng = dataEng,options)
+    futureFrame <- .makeEmptyFutureFrame(jaspResults,dataEngFuture,dataEng = dataEng,options)
 
 
 
@@ -1788,18 +1846,18 @@ lagit <- function(a,k) {
 
     #error handling when covariates present but prediction points longer than actual
     #length(options$covariates) > 0 && length(options$factors) > 0
-    if(options$futurePredictionPoints > nrow(futureFrame)){
-      errorPlot <- createJaspPlot()
-      errorPlot$setError(gettext("Cannot compute forecast. Larger forecast horizon requested than indicated by 'Include in Training' variable. Reduce forecast horizon or change training indicator"))
-      jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- errorPlot
+    #if(options$futurePredictionPoints > nrow(futureFrame)){
+    #  errorPlot <- createJaspPlot()
+    #  errorPlot$setError(gettext("Cannot compute forecast. Larger forecast horizon requested than indicated by 'Include in Training' variable. Reduce forecast horizon or change training indicator"))
+    #  jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- errorPlot
+#
+    #  return()
+    #} else{
+    #  jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- NULL
+    #}
 
-      return()
-    } else{
-      jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- NULL
-    }
 
-    futureFrame <- head(futureFrame,options$futurePredictionPoints)
-    futureFrame$tt <- (nrRows+1):(nrRows+options$futurePredictionPoints)
+    futureFrame$tt <- (nrRows+1):(nrRows+nrow(futureFrame))
 
 
     predList <- list()
@@ -1836,6 +1894,7 @@ lagit <- function(a,k) {
     futurePredPlot <- createJaspPlot(title = "Future prediction plot", height = 480, width = 720,position = 2)
     futurePredPlot$dependOn(c(.modelDependencies(),
                               .boundDependencies(),
+                              .futurePredictDependencies(),
                               "xAxisLimit",
                               "futurePredictionPoints",
                               "checkFuturePredictionPlot",

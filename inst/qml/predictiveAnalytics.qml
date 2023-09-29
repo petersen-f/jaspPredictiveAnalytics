@@ -344,6 +344,7 @@ Form
 			}
 			IntegerField{
 				name: "resampleInitialTraining"
+				id: "resampleInitialTraining"
 				label: qsTr("Training window")
 				defaultValue: Math.floor((dataSetModel.rowCount() / 5)*1.4)
 			}
@@ -599,35 +600,62 @@ Form
 		{
 			RadioButtonGroup
 			{
-				title: qsTr("Prediction horizon")
-				name: "futurePredPredictionHorizon"
+				title: qsTr("Prediction type")
+				//name: "futurePredPredictionHorizon"
+				name: "futurePredPredictionType"
+
+				RadioButton
+				{
+					name: "noFuturePrediction"
+					label: qsTr("No forecast - verification only")
+					checked: true
+				}
 
 
-				//RadioButton
-				//{
-				//	name: "trainingIndicator"
-				//	label: qsTr("Training indicator")
-				//	checked: true
-				//}
+				RadioButton
+				{
+					name: "trainingIndicator"
+					label: qsTr("Training indicator")
+				}
 
 				//RadioButton
 				//{
 				//	name: "timepoints"
 				//	label: qsTr("Time points")
 				//	childrenOnSameRow: true
-					IntegerField{name: "futurePredictionPoints"; afterLabel: qsTr("data points");min: 1; defaultValue: resampleForecastHorizon.value }
-				//	checked: true
+				//	IntegerField
+				//	{
+				//		name: "futurePredictionPoints"; afterLabel: qsTr("data points");min: 1; defaultValue: resampleForecastHorizon.value 
+				//	}
 				//}
 
-				//RadioButton
-				//{
-				//	name: "days"
-				//	label: qsTr("Days:")
-				//	childrenOnSameRow: true
-				//	IntegerField{name: "futurePredictionDays"; min: 0; defaultValue: 0}
-//
-				//}
-
+				RadioButton
+				{
+					value: "periodicalPrediction"
+					label: qsTr("Periodical")
+					checked: true
+					IntegerField
+					{
+						name: "periodicalPredictionNumber"
+						label: qsTr("Number of periods")
+						defaultValue: 0
+					}
+					DropDown
+					{
+						name: "periodicalPredictionUnit"
+						label: qsTr("Unit")
+						indexDefaultValue: 3
+						values:
+						[
+							{ label: qsTr("Seconds"), value: "secs"		},
+							{ label: qsTr("Minutes"), value: "mins"		},
+							{ label: qsTr("Hours"),   value: "hours"	},
+							{ label: qsTr("Days"),    value: "days"		},
+							{ label: qsTr("Weeks"),   value: "weeks"	},
+							{ label: qsTr("Years"),   value: "years"	}
+						]
+					}
+				}
 			}
 
 			RadioButtonGroup
@@ -656,7 +684,8 @@ Form
 		{
 			name: "checkFuturePredictionPlot"
 			label: "Future prediction plot"
-			checked: true
+			checked: futurePredPredictionType.currentValue != "noFuturePrediction"
+			enabled: futurePredPredictionType.currentValue != "noFuturePrediction"
 			CheckBox
 			{
 				name: "futurePredSpreadPointsEqually"
