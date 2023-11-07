@@ -307,12 +307,7 @@ Form
 
 
 
-		CheckBox
-		{
-			name: "featEngImputeTS"
-			label: qsTr("Impute missing values")
 
-		}
 
 
 		CheckBox
@@ -322,17 +317,7 @@ Form
 
 		}
 
-		Group
-		{
-			Layout.columnSpan: 2
-			CheckBox{name: "featEngRemoveZV"; label: qsTr("Remove zero-variance variables")}
-			CheckBox{
-				name: "featEngRemoveCor"
-				label: qsTr("Remove variables that are stronger correlated than:")
-				childrenOnSameRow: true
-				DoubleField{ name: "featEngRemoveCorAbove"; defaultValue: 0.8}
-			}
-		}
+
 
 	}
 	Section
@@ -564,7 +549,7 @@ Form
 			{
 				name: "bmaMethod"
 				title: qsTr("Method")
-				RadioButton{ value: "bmaMethodEm"; label: qsTr("Expectation–maximization")}
+				RadioButton{ value: "bmaMethodEm"; label: qsTr("Expectation–maximization"); checked: true}
 				RadioButton{ value: "bmaMethodGibbs"; label: qsTr("Gibbs sampling")}
 			}
 			RadioButtonGroup
@@ -637,6 +622,7 @@ Form
 				RadioButton
 				{
 					value: "noFuturePrediction"
+					checked: trainingIndicatorVariable.count == 0
 					id: noFuturePrediction
 					
 					label: qsTr("No forecast - verification only")
@@ -648,7 +634,7 @@ Form
 					value: "trainingIndicator"
 					id: trainingIndicator
 					enabled: trainingIndicatorVariable.count > 0
-					checked: true
+					checked: trainingIndicatorVariable.count > 0
 					label: qsTr("Training indicator")
 				}
 

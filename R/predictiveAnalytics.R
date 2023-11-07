@@ -18,6 +18,7 @@
 # Main function ----
 
 predictiveAnalytics <- function(jaspResults, dataset, options) {
+   
     ready <- options$dependent != "" & options$time != ""
 
     dataset <- .predanReadData(options,ready)
@@ -45,8 +46,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
     .predanFuturePredictionResults(jaspResults,dataset,options,ready)
     .predanFuturePredictionPlot(jaspResults,dataset,options,ready)
-    .predanFuturePredictionTable(jaspResults,dataset,options,ready)
-
+    
     return()
 }
 
@@ -1813,16 +1813,6 @@ lagit <- function(a,k) {
 
 
     #error handling when covariates present but prediction points longer than actual
-    #length(options$covariates) > 0 && length(options$factors) > 0
-    #if(options$futurePredictionPoints > nrow(futureFrame)){
-    #  errorPlot <- createJaspPlot()
-    #  errorPlot$setError(gettext("Cannot compute forecast. Larger forecast horizon requested than indicated by 'Include in Training' variable. Reduce forecast horizon or change training indicator"))
-    #  jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- errorPlot
-#
-    #  return()
-    #} else{
-    #  jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- NULL
-    #}
 
 
     futureFrame$tt <- (nrRows+1):(nrRows+nrow(futureFrame))
@@ -1843,7 +1833,10 @@ lagit <- function(a,k) {
     
     
 
-
+    startProgressbar(
+      length(modelList),
+      gettextf("Training models for future prediction")
+    )
     predList <- list()
     for (i in 1:length(modelList)) {
       predList[[i]] <- .predAnModelFit(trainData = dataEng,
@@ -1852,6 +1845,7 @@ lagit <- function(a,k) {
                                        method = modelList[[i]]$model,
                                        formula = modelList[[i]]$modelFormula,
                                        model_args =list())
+      progressbarTick()
     }
     names(predList) <- paste0(sapply(modelList,'[', "model"),1:length(modelList))
 
@@ -1968,7 +1962,7 @@ lagit <- function(a,k) {
     }
 
     p <- p + ggplot2::geom_ribbon(ggplot2::aes_string(ymin="lwr",ymax="upr"),alpha=0.5,color = NA, fill = "blue") +
-      ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks))
+      ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks)) 
 
     outOfBoundMin <- predictionsCombined[[t_var]][min(which(predictionsCombined$lwrProb > options$futurePredThreshold |
                                                               predictionsCombined$uprProb > options$futurePredThreshold))]
@@ -1977,11 +1971,14 @@ lagit <- function(a,k) {
       p <- p + ggplot2::geom_vline(xintercept = outOfBoundMin,linetype="dashed",color="darkred")
 
     
+    if(options$futurePredPredictionType == "periodicalPrediction"){
+      p <- p + ggplot2::labs(caption = stringr::str_wrap(gettext("You extended the time series via periodical prediction. Please make sure that the time series is indeed periodic and matches the number of periods and units of the provided training data."),width = 80)) +
+          ggplot2::theme(plot.caption = ggplot2::element_text(hjust = 0))
+    }
+
     futurePredPlot$plotObject <- p
 
-    if(options$futurePredPredictionType == "periodicalPrediction"){
-      futurePredPlot$addCitation(gettext("You extended the time series via periodical prediction. Please make sure that the time series is indeed periodic and matches the number of periods and units of the provided training data."))
-    }
+    
 
     if(options$futurePredReportingCheck){
 
@@ -1994,13 +1991,17 @@ lagit <- function(a,k) {
 
       warningText <- ifelse(warningIndicator,
                             gettextf(paste0("Warning! The process is predicted to cross the out-of-control probability threshold for the first time at time point: ",outOfBoundMin)),
-                            gettextf(paste0("No warning. The process is not predicted to cross the out-of-control probability threshold. The highest out-of-bound probability is: ",outBoundMax,"percent.")))
+                            gettextf(paste0("No warning. The process is not predicted to cross the out-of-control probability threshold. The highest out-of-bound probability is ",outBoundMax*100," percent.")))
 
 
       jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["futurePredReport"]] <- createJaspReport(
         text =  warningText,
         report = warningIndicator,
-        dependencies = c("futurePredThreshold","futurePredReportingCheck"),
+        dependencies = c(.modelDependencies(),
+                              .boundDependencies(),
+                              .futurePredictDependencies(),
+                              "futurePredThreshold",
+                              "futurePredReportingCheck"),
         position = 1)
 
     }
