@@ -378,9 +378,14 @@ Form
 
 			VariablesForm
 			{
+				// this function dynamically selects the available models based on users input
+				// due to some bug however, the values can't be directly selected as they dissapear in between saves
+				// instead the values are computed, hidden and then used as input for another AvailableVariables List
+				visible: false
 				AvailableVariablesList
 				{
-					name:"availableModels"
+					name:"availableModelsHidden"
+					
 					// at the current moment, the user can choose models from a variety of predefined models
 					// some of these models contain a regressive component or lagged values
 					// but they only work if the user provided covariates or created some in the feature engineering section
@@ -426,6 +431,18 @@ Form
 					}
 					source: getAvailableModels()
 				}
+			}
+
+			VariablesForm
+			{
+				// this function dynamically selects the available models based on users input
+				// due to some bug however, the values can't be directly selected as they dissapear in between saves
+				// instead the values are computed, hidden and then used as input for another AvailableVariables List
+				AvailableVariablesList
+				{
+					name: "availableModels"
+					source: "availableModelsHidden"
+				} 
 				AssignedVariablesList
 				{
 					name: "selectedModels"
@@ -672,6 +689,7 @@ Form
 							{ label: qsTr("Hours"),   value: "hours"	},
 							{ label: qsTr("Days"),    value: "days"		},
 							{ label: qsTr("Weeks"),   value: "weeks"	},
+							{ label: qsTr("Months"),   value: "months"	},
 							{ label: qsTr("Years"),   value: "years"	}
 						]
 					}
