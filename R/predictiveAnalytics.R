@@ -95,6 +95,19 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
         "That way the data is automatically extended into the future based on your settings. \n", 
         "If you just want to check how well the predictions perform historically you can choose the option 'No forecast - verification only'")))
 
+    },
+    #function checks whether we have a proper training indicator sequence that consists of uninterrupted 1s and 0s
+    .trainingIndicatorOrderCheck <- function(){
+      if(options$trainingIndicator == "") return()
+      idx <- as.logical(dataset[[encodeColNames(options$trainingIndicator)]])
+      if( all(rle(idx)$values != c(1,0))){
+        return(gettext(paste(
+          "The 'Include in Training' variable you provided does not consist of an uninterrupted sequence of ones (1) followed by an uninterrupted sequence of zeros (0). \n",
+          "This is necessary as the module performs forecast verification on historical data to perform out-of-sample predictions for the future.",
+          "Since time series data is temporally dependent, you cannot randomly allocate the ones and zeros in the 'Include in Training' variable. \n",
+          "Please provide an alternative 'Include in Training' variable or only perform forecast verification/periodical prediction."
+        )))
+      }
     }
   )
   .hasErrors(dataset = dataset,
@@ -896,15 +909,29 @@ lagit <- function(a,k) {
 
   dataControl <- jaspResults[["predanResults"]][["predanBounds"]]$object[[1]]
 
+  #check whether based on training indicator
+  trainingIndSum <- sum(as.numeric(dataset[[encodeColNames(options$trainingIndicator)]]),na.rm=T) - options$featEngLags
+
+  if(options$trainingIndicator != "" && (trainingIndSum ) < (options$resampleInitialTraining  + options$resampleForecastHorizon)){
+    errorPlotTrain <- createJaspPlot(dependencies= c("trainingIndicator","resampleInitialTraining","resampleForecastHorizon","featEngLags"))
+    errorPlotTrain$setError(gettext(paste(
+        "Too little data available for training! The 'Include in Training' variable determines which observations are used for training/verification (by setting them to one).",
+        "However the selected data is not enough for the indicated Training and Prediction Window.",
+        "Please select a 'Include in Training' variable that includes more observations for training or reduce the Training and Prediction Window variables.",trainingIndSum
+        )))
+    jaspResults[["predanMainContainer"]][["cvContainer"]][["errorPlotTrain"]] <- errorPlotTrain
+    return()
+  }
+
   # throw error when lags are larger than training window as lags can't be computed
   if(options$featEngLags > options$resampleInitialTraining){
-    errorPlot <- createJaspPlot(dependencies= c("featEngLags","resampleInitialTraining"))
-    errorPlot$setError(gettext(paste(
+    errorPlotLags <- createJaspPlot(dependencies= c("featEngLags","resampleInitialTraining"))
+    errorPlotLags$setError(gettext(paste(
         "The length of the training window is shorter than the number of lags selected in the 'Feature Engineering' section.",
         "This makes it impossible to compute all the values of the lagged dependent variable as there is too little data for training",
         "Either increase the training window size or reduce the number of lags."
         )))
-    jaspResults[["predanMainContainer"]][["cvContainer"]][["errorPlot"]] <- errorPlot
+    jaspResults[["predanMainContainer"]][["cvContainer"]][["errorPlotLags"]] <- errorPlotLags
     return()
   }
 
