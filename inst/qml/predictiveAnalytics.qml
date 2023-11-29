@@ -333,12 +333,14 @@ Form
             //Layout.columnSpan: 1
 			IntegerField{
 				name: "resampleForecastHorizon"
+				min: 2
 				id: "resampleForecastHorizon"
 				label: qsTr("Prediction window")
 				defaultValue: Math.floor((dataSetModel.rowCount() / 5)*0.6)
 			}
 			IntegerField{
 				name: "resampleInitialTraining"
+				min: 2
 				id: "resampleInitialTraining"
 				label: qsTr("Training window")
 				defaultValue: Math.floor((dataSetModel.rowCount() / 5)*1.4)
@@ -705,12 +707,12 @@ Form
 				RadioButton
 				{
 					value: "last"
-					checked: true
+					checked: !resampleCumulativeCheck.checked
 					label: qsTr("Last")
 					childrenOnSameRow: true
 						IntegerField{name: "futurePredTrainingPoints"; afterLabel: qsTr("data points"); defaultValue: resampleInitialTraining.value}
 				}
-				RadioButton{name: "all"; label: qsTr("All data points")}
+				RadioButton{name: "all"; label: qsTr("All data points"); checked: resampleCumulativeCheck.checked }
 
 		}
 	}
