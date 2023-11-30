@@ -301,7 +301,7 @@ Form
 	{
 		title: qsTr("Feature Engineering")
 
-		IntegerField{name: "featEngLags";id: featEngLags; label: "Nr. of lags"; defaultValue: 0; min: 0}
+		IntegerField{name: "featEngLags";id: featEngLags; label: "Nr. of lags"; defaultValue: 0; min: 0; max: (resampleInitialTraining.value - 1)}
 
 		CheckBox{name: "featEngAutoTimeBased"; id: featEngAutoTimeBased; label: "Automatic time-based features"}
 
@@ -334,12 +334,14 @@ Form
 			IntegerField{
 				name: "resampleForecastHorizon"
 				min: 2
+				max: dataSetInfo.rowCount - resampleInitialTraining.value
 				id: "resampleForecastHorizon"
 				label: qsTr("Prediction window")
 				defaultValue: Math.floor((dataSetModel.rowCount() / 5)*0.6)
 			}
 			IntegerField{
 				name: "resampleInitialTraining"
+				max: dataSetInfo.rowCount - resampleForecastHorizon.value
 				min: 2
 				id: "resampleInitialTraining"
 				label: qsTr("Training window")

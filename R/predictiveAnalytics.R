@@ -191,28 +191,7 @@ predictiveAnalytics <- function(jaspResults, dataset, options) {
 
 
 
-.dssScore <- function(y,dat){
-  m <- mean(dat,na.rm = T)
-  v <- mean(dat^2,na.rm = T) - m^2
 
-  return(sapply(y, function(s) (s - m)^2 / v + log(v)))
-}
-
-.brierScore <- function(pred,real,calc_mean = F){
-
-  brier <- (real-pred)^2
-  if(calc_mean)
-    brier <- mean(brier,na.rm=T)
-  return(brier)
-}
-
-.crpsScore <- function(y,dat){
-  c_1n <- 1 / length(dat)
-  x <- sort(dat)
-  a <- seq.int(0.5 * c_1n, 1 - 0.5 * c_1n, length.out = length(dat))
-  f <- function(s) 2 * c_1n * sum(((s < x) - a) * (x - s),na.rm = T)
-  return(  sapply(y, f))
-}
 
 
 
@@ -1036,7 +1015,7 @@ lagit <- function(a,k) {
       # only start training frame after lag are created so no NA values
       starts <- rep(lag + 1, length(stops))
     }
-    
+
     in_ind <- mapply(seq, starts, stops, SIMPLIFY = FALSE)
     out_ind <- mapply(seq, stops + 1 , stops + assess, SIMPLIFY = FALSE)
     merge_lists <- function(a, b)
@@ -1053,7 +1032,7 @@ lagit <- function(a,k) {
       # only start training frame after lag are created so no NA values
       starts <- rep(lag + 1, length(stops))
     }
-    
+
     in_ind <- mapply(seq, starts, stops, SIMPLIFY = FALSE)
     out_ind <- mapply(seq, stops + 1 , stops + assess, SIMPLIFY = FALSE)
     merge_lists <- function(a, b) list(analysis = a, assessment = b)
@@ -1475,7 +1454,7 @@ lagit <- function(a,k) {
     upperLimit <- predanResults[["upperLimit"]]
     lowerLimit <- predanResults[["lowerLimit"]]
     plotLimit <- predanResults[["plotLimit"]]
-    
+
     bma <- jaspResults[["predanResults"]][["bmaResState"]]$object
     #maxSlices <- options$modelsToPlotSlices
 
@@ -1484,8 +1463,8 @@ lagit <- function(a,k) {
     modsFull <- sapply(cvRes, "[","modelName")
     plotMods <- c(mods[which(modsFull %in% options$"modelsToPlot")],"Data")
     slices <- head(dimnames(cvRes[[1]]$realMatrix)[[2]],options$modelsToPlotSlices)
-
-    cvResPlot <- createJaspPlot(title = "Prediction Plots",width = 720,height = 180*length(slices))
+    plotHeight <- ifelse(length(slices) ==1, 240,180*length(slices))
+    cvResPlot <- createJaspPlot(title = "Prediction Plots",width = 720,height = plotHeight)
     cvResPlot$dependOn(c("modelsToPlot","checkPerformBma","modelsToPlotSlices"))
 
 
@@ -1518,13 +1497,13 @@ lagit <- function(a,k) {
 
     dimnames(predSummArray)[3] <- list(dimnames(realMatrix)[[2]])
 
+    pred <- cbind(as.data.frame.table(as.array(predSummArray[,1,,]),responseName = "value"),
+                  upr = as.data.frame.table(as.array(predSummArray[,2,,]))$Freq,
+                  lwr = as.data.frame.table(as.array(predSummArray[,3,,]))$Freq)
 
-    pred <- cbind(as.data.frame.table(predSummArray[,1,,],responseName = "value"),
-                  upr = as.data.frame.table(predSummArray[,2,,])$Freq,
-                  lwr = as.data.frame.table(predSummArray[,3,,])$Freq)
-    
     #add model name column in case we only have one model because otherwise it is not present in df
     if(length(options$"modelsToPlot") == 1 && length(options$selectedModels) == 1 ){
+      if(length(slices) == 1) pred$Var2 <- dimnames(predSummArray)[[3]]
       pred$Var3 <- dimnames(predSummArray)[[4]]
       pred <- pred[,c('Var1','Var2',"Var3","value","upr","lwr")]
     }
@@ -1542,18 +1521,18 @@ lagit <- function(a,k) {
     if( "BMA" %in% options$"modelsToPlot" && options$checkPerformBma){
       try({
         print("doing the bma plotting")
-        
+
         bmaRes <- bma$res
         bmaDat <- sapply(X = 1:(length(bmaRes)-1), function(x) bmaRes[[x]]@predTest[,1,])
-        
+
         bmaPred  <- as.data.frame.table(bmaDat)
         bmaSlices <- (unique(dataPlot$slice))
         if(all(is.na(bma$scores[,1])))
           bmaSlices <- bmaSlices[-1]
-        
+
         ttBma <- unlist(lapply(cvPlan,function(x) tail(x$assessment,nrow(bmaPred)/length(bmaSlices))))
-        
-        
+
+
         bmaData <- subset(dataPlot,type == plotMods[1] & slice %in% bmaSlices)
         bmaData$value <- bmaPred$Freq
         #bmaData$slice <-  rep(bmaSlices,each = nrow(bmaPred)/length(bmaSlices))
@@ -1563,7 +1542,7 @@ lagit <- function(a,k) {
         dataPlot <- dplyr::bind_rows(dataPlot,bmaData)
         plotMods <- c(plotMods,"BMA")
       })
-      
+
     }
     #View(dataPlot)
     dataPlot <- subset(dataPlot,slice %in% slices & (type %in% plotMods | is.na(type)))
@@ -1696,7 +1675,7 @@ lagit <- function(a,k) {
 
     bmaResState$object <- bmaRes
 
-    
+
 
     jaspResults[["predanResults"]][["bmaResState"]] <- bmaResState
     jaspResults[["plottableModelsQml"]] <- createJaspQmlSource(sourceID="plottableModelsQml", value= c(options$selectedModels,"BMA"))
@@ -1871,7 +1850,7 @@ lagit <- function(a,k) {
 
 
     futureFrame$tt <- (nrRows+1):(nrRows+nrow(futureFrame))
-    
+
     if(all(is.na(dataEng$y)) || var(dataEng$y) == 0){
       errorPlot <- createJaspPlot()
       errorPlot$setError(gettext(paste(
@@ -1880,13 +1859,13 @@ lagit <- function(a,k) {
         "Either provide better data or change the training window for future prediction."
         )))
       jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- errorPlot
-    
+
       return()
     } else{
       jaspResults[["predanMainContainer"]][["predanFuturePredContainer"]][["errorPlot"]] <- NULL
     }
-    
-    
+
+
 
     startProgressbar(
       length(modelList),
@@ -2017,7 +1996,7 @@ lagit <- function(a,k) {
     }
 
     p <- p + ggplot2::geom_ribbon(ggplot2::aes_string(ymin="lwr",ymax="upr"),alpha=0.5,color = NA, fill = "blue") +
-      ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks)) 
+      ggplot2::scale_x_continuous(name = "Time",breaks = xBreaks,limits = range(xBreaks))
 
     outOfBoundMin <- predictionsCombined[[t_var]][min(which(predictionsCombined$lwrProb > options$futurePredThreshold |
                                                               predictionsCombined$uprProb > options$futurePredThreshold))]
@@ -2025,7 +2004,7 @@ lagit <- function(a,k) {
     if(!is.na(outOfBoundMin) & options$futurePredReportingCheck)
       p <- p + ggplot2::geom_vline(xintercept = outOfBoundMin,linetype="dashed",color="darkred")
 
-    
+
     if(options$futurePredPredictionType == "periodicalPrediction"){
       p <- p + ggplot2::labs(caption = stringr::str_wrap(gettext("You extended the time series via periodical prediction. Please make sure that the time series is indeed periodic and matches the number of periods and units of the provided training data."),width = 80)) +
           ggplot2::theme(plot.caption = ggplot2::element_text(hjust = 0))
@@ -2033,7 +2012,7 @@ lagit <- function(a,k) {
 
     futurePredPlot$plotObject <- p
 
-    
+
 
     if(options$futurePredReportingCheck){
 
